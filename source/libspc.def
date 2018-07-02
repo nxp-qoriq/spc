@@ -1,0 +1,6 @@
+LIBRARY "libspc"
+EXPORTS
+    spc_compile
+    spc_get_error
+    spc_log
+    spc_log_write

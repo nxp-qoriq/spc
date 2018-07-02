@@ -1,0 +1,32 @@
+# The MIT License (MIT)                                                   #
+# Copyright 2018 NXP								                      #
+###########################################################################
+
+Build steps for SPC:
+   - The package is dependent on the following external packages that should
+     be installed on your system:
+       - xmllib2
+       - tclap
+       - net user space library
+
+   - Set environment variables or modify Makefile with the following entries:
+       - NET_USPACE_HEADER_PATH - path to net user space package headers location
+       - LIBXML2_HEADER_PATH    - path to libxml2 include files
+       - TCLAP_HEADER_PATH      - path to TCLAP include files
+
+   - Issue 'make' command
+   
+   - For host side compilation (the mode in which SPC doesn't use
+     direct libfm API calls), use 'make FMCHOSTMODE=1' command
+
+Install steps for SPC:
+   - After successful compilation, put 'spc' application to
+     /usr/bin folder of your target
+   - Copy 'etc' folder to /etc folder of your target
+
+Install verification:
+    spc --help
+    command should provide list of command line options available
+
+    spc -s sample.xml
+    command will produce an example soft parser configuration source code

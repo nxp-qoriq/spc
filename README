@@ -1,0 +1,16 @@
+# The MIT License (MIT)                                                   #
+# Copyright 2018 NXP								                      #
+###########################################################################
+
+This package is a source code for Soft Parser Configuration tool.
+
+The Soft Parser Configuration tool is a software package whose primary
+purpose is converting NetPDL protocol descriptions of
+custom protocols into hardware configuration. The tool provides an
+abstraction layer between the end customer's vision of the NetPDL definition
+and real hardware implementation.
+Trying to achieve this aim, the tool frees customers from the need to learn new
+hardware implementations details, gives a quick start for new customers
+and simplifies the work for experienced users. In addition, the tool can be used
+for hardware verification, permitting a wide range of input parameters
+in fast and convenient form.
