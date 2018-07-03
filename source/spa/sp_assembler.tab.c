@@ -531,6 +531,9 @@ static bool _sp_raw_instruction_action(_sp_assembler_parser_context_t *ctx_p)
  *    ctx_p - Parse context
  *    str_p - String containing label name.
  *    hxs   - Header examination sequence?
+ *    gosub - Gosub behavior
+ *    faf    - Frame Attribute Flag
+ *    faf_id - Frame Attribute Flag identifier to use if faf is true. 
  *
  * Returns:
  *   Bool - True means action succeeded.
@@ -539,11 +542,15 @@ static bool _sp_raw_instruction_action(_sp_assembler_parser_context_t *ctx_p)
 static bool _sp_jmp_label_action(_sp_assembler_parser_context_t *ctx_p,
                                    char                             *str_p,
                                    bool                              hxs,
-                                   bool                              gosub)
+                                   bool                              gosub,
+                                   bool                              faf,
+                                   int                               faf_id)
 {
    _sp_assembler_instruction_t *object_p;
    uint32_t                       len;
-   char                           hxs_bit_p[] = " | 0x400";
+   char                           jmp_faf_hxs_bit_p[] = " | 0x80";
+   char                           jmp_faf_pre_id_p[]  = " | ";
+   char                           hxs_bit_p[]         = " | 0x1";
 
    /* 1 immediate value for jump instruction - the destination*/
    ctx_p->num_immediate_values = 1;
@@ -560,51 +567,111 @@ static bool _sp_jmp_label_action(_sp_assembler_parser_context_t *ctx_p,
 
    object_p->gosub = gosub;
 
-   if (hxs)
+   if (faf)
    {
-      len = strlen(_SP_INSTR_CODE_JUMP_STR) +
-            strlen(hxs_bit_p)                 +
-            1;
-
-      object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
-
-      if (object_p->hw_words_str_p[0] == NULL)
+      if (hxs)
       {
-         _sp_assembler_yyerror(ctx_p,
-                                 "Failed to allocate string.");
-         _sp_destroy_instruction(object_p);
-         return (false);
+         len = strlen(_SP_INSTR_CODE_JMP_FAF_STR) +
+               strlen(jmp_faf_hxs_bit_p)            +
+               strlen(jmp_faf_pre_id_p)             +
+               strlen(_SP_INSTR_CODE_NOP_STR)     +  // All codes the same length
+               1;
+   
+         object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+   
+         if (object_p->hw_words_str_p[0] == NULL)
+         {
+            _sp_assembler_yyerror(ctx_p,
+                                    "Failed to allocate string.");
+            _sp_destroy_instruction(object_p);
+            return (false);
+         }
+   
+         snprintf(object_p->hw_words_str_p[0],
+                  len,
+                  "%s%s%s0x%04x",
+                  _SP_INSTR_CODE_JMP_FAF_STR,
+                  jmp_faf_hxs_bit_p,
+                  jmp_faf_pre_id_p,
+                  faf_id);
+   
+         object_p->hw_words_p[0] = _SP_INSTR_CODE_JMP_FAF | _SP_INSTR_MOD_JMP_FAF_HXS | faf_id;
       }
+      else
+      {
+         len = strlen(_SP_INSTR_CODE_JMP_FAF_STR) +
+               strlen(jmp_faf_pre_id_p)             +
+               strlen(_SP_INSTR_CODE_NOP_STR)     +  // All codes the same length
+               1;
 
-      snprintf(object_p->hw_words_str_p[0],
-               len,
-               "%s%s",
-               _SP_INSTR_CODE_JUMP_STR,
-               hxs_bit_p);
+         object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
 
-      object_p->hw_words_p[0] = _SP_INSTR_CODE_JUMP | _SP_INSTR_MOD_JMP_HXS;
+         if (object_p->hw_words_str_p[0] == NULL)
+         {
+            _sp_assembler_yyerror(ctx_p,
+                                    "Failed to allocate string.");
+            _sp_destroy_instruction(object_p);
+            return (false);
+         }
+
+         snprintf(object_p->hw_words_str_p[0],
+                  len,
+                  "%s%s0x%04x",
+                  _SP_INSTR_CODE_JMP_FAF_STR,
+                  jmp_faf_pre_id_p,
+                  faf_id);
+
+         object_p->hw_words_p[0] = _SP_INSTR_CODE_JMP_FAF | faf_id;
+      }
    }
    else
    {
-      len = strlen(_SP_INSTR_CODE_JUMP_STR) + 1;
-
-      object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
-
-      if (object_p->hw_words_str_p[0] == NULL)
-      {
-         _sp_assembler_yyerror(ctx_p,
-                                 "Failed to allocate string.");
-         _sp_destroy_instruction(object_p);
-         return (false);
-      }
-
-      snprintf(object_p->hw_words_str_p[0],
-               len,
-               "%s",
-               _SP_INSTR_CODE_JUMP_STR);
-
-      object_p->hw_words_p[0] = _SP_INSTR_CODE_JUMP;
-   }
+	   if (hxs)
+	   {
+	      len = strlen(_SP_INSTR_CODE_JUMP_STR) +
+	            strlen(hxs_bit_p)                 +
+	            1;
+	
+	      object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+	
+	      if (object_p->hw_words_str_p[0] == NULL)
+	      {
+	         _sp_assembler_yyerror(ctx_p,
+	                                 "Failed to allocate string.");
+	         _sp_destroy_instruction(object_p);
+	         return (false);
+	      }
+	
+	      snprintf(object_p->hw_words_str_p[0],
+	               len,
+	               "%s%s",
+	               _SP_INSTR_CODE_JUMP_STR,
+	               hxs_bit_p);
+	
+	      object_p->hw_words_p[0] = _SP_INSTR_CODE_JUMP | _SP_INSTR_MOD_JMP_HXS;
+	   }
+	   else
+	   {
+	      len = strlen(_SP_INSTR_CODE_JUMP_STR) + 1;
+	
+	      object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+	
+	      if (object_p->hw_words_str_p[0] == NULL)
+	      {
+	         _sp_assembler_yyerror(ctx_p,
+	                                 "Failed to allocate string.");
+	         _sp_destroy_instruction(object_p);
+	         return (false);
+	      }
+	
+	      snprintf(object_p->hw_words_str_p[0],
+	               len,
+	               "%s",
+	               _SP_INSTR_CODE_JUMP_STR);
+	
+	      object_p->hw_words_p[0] = _SP_INSTR_CODE_JUMP;
+	   }
+	}
 
    object_p->hxs                = hxs;
    object_p->num_valid_hw_words = 2;
@@ -4848,6 +4915,64 @@ static bool _sp_jmp_nxt_ip_proto_action(_sp_assembler_parser_context_t *ctx_p)
 }
 
 /* ---------------------------------------------------------------------------
+ * Action for jmp_nxt_tcpudp_ports
+ *
+ * Parameters:
+ *    ctx_p - Parse context
+ *
+ * Returns:
+ *   Bool - True means action succeeded.
+ *          False means action did not succeed.
+ * ---------------------------------------------------------------------------*/
+static bool _sp_jmp_nxt_tcpudp_ports_action(_sp_assembler_parser_context_t *ctx_p)
+{
+   _sp_assembler_instruction_t *object_p;
+   uint32_t                       len;
+
+   /* No immediate values */
+   ctx_p->num_immediate_values = 0;
+
+   object_p = _sp_new_instruction(_sp_assembler_jmp_nxt_tcpudp_ports_e,
+                                    ctx_p);
+
+   if (object_p == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate instruction object.");
+      return (false);
+   }
+
+   len = strlen(_SP_INSTR_CODE_JMP_NXT_TCPUDP_PORTS_STR) + 1;
+
+   object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+
+   if (object_p->hw_words_str_p[0] == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate string.");
+      return (false);
+   }
+
+   snprintf(object_p->hw_words_str_p[0],
+            len,
+            "%s",
+            _SP_INSTR_CODE_JMP_NXT_TCPUDP_PORTS_STR);
+
+   /* HW opcode */
+   object_p->hw_words_p[0] = _SP_INSTR_CODE_JMP_NXT_TCPUDP_PORTS;
+
+   object_p->num_valid_hw_words = 1;
+
+   dll_add_to_back(&(ctx_p->instruction_list),
+                   &(object_p->dll_node));
+
+   /* Clear context values */
+   _sp_clear_ctx_instruction_values(ctx_p);
+
+   return (true);
+}
+
+/* ---------------------------------------------------------------------------
  * Action for define_variable
  *
  * Parameters:
@@ -4925,7 +5050,149 @@ static bool _sp_return_sub_action(_sp_assembler_parser_context_t *ctx_p)
 }
 
 
-#line 4929 "sp_assembler.tab.c" /* yacc.c:339  */
+/* ---------------------------------------------------------------------------
+ * Action for clr_faf
+ *
+ * Parameters:
+ *    ctx_p      - Parse context
+ *    faf_id     - Frame Attribute Flag identifier
+ *
+ * Returns:
+ *   Bool - True means action succeeded.
+ *          False means action did not succeed.
+ * ---------------------------------------------------------------------------*/
+static bool _sp_clr_faf_action(_sp_assembler_parser_context_t *ctx_p,
+                                 int                               faf_id)
+{
+   _sp_assembler_instruction_t *object_p;
+   uint32_t                       len;
+   char                           faf_id_str_p[] = " | 0xJJJJ";
+
+   /* No immediate values */
+   ctx_p->num_immediate_values = 0;
+
+   object_p = _sp_new_instruction(_sp_assembler_set_clr_faf_e,
+                                    ctx_p);
+
+   if (object_p == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate instruction object.");
+      return (false);
+   }
+
+   // Set_Clr_FAF
+   // 0000 0011 CJJJ JJJJ
+
+   len = strlen(_SP_INSTR_CODE_SET_CLR_FAF_STR) +
+         strlen(faf_id_str_p)                     + 1;
+
+   object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+
+   if (object_p->hw_words_str_p[0] == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate string.");
+      return (false);
+   }
+
+   snprintf(object_p->hw_words_str_p[0],
+            len,
+            "%s | 0x%04x",
+            _SP_INSTR_CODE_SET_CLR_FAF_STR,
+            faf_id);
+
+   /* HW opcode */
+   object_p->hw_words_p[0] = _SP_INSTR_CODE_SET_CLR_FAF;
+
+   // c is already set to 0
+   // Set j = faf_id
+   object_p->hw_words_p[0] |= (0x007f & faf_id);
+
+   object_p->num_valid_hw_words = 1;
+
+   dll_add_to_back(&(ctx_p->instruction_list),
+                   &(object_p->dll_node));
+
+   /* Clear context values */
+   _sp_clear_ctx_instruction_values(ctx_p);
+
+   return (true);
+}
+
+/* ---------------------------------------------------------------------------
+ * Action for set_faf
+ *
+ * Parameters:
+ *    ctx_p      - Parse context
+ *    faf_id     - Frame Attribute Flag identifier
+ *
+ * Returns:
+ *   Bool - True means action succeeded.
+ *          False means action did not succeed.
+ * ---------------------------------------------------------------------------*/
+static bool _sp_set_faf_action(_sp_assembler_parser_context_t *ctx_p,
+                                 int                               faf_id)
+{
+   _sp_assembler_instruction_t *object_p;
+   uint32_t                       len;
+   char                           faf_id_str_p[] = " | 0x0080 | 0xNNNN";
+
+   /* No immediate values */
+   ctx_p->num_immediate_values = 0;
+
+   object_p = _sp_new_instruction(_sp_assembler_set_clr_faf_e,
+                                    ctx_p);
+
+   if (object_p == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate instruction object.");
+      return (false);
+   }
+
+   // Set_Clr_FAF
+   // 0000 0011 CJJJ JJJJ
+
+   len = strlen(_SP_INSTR_CODE_SET_CLR_FAF_STR) +
+         strlen(faf_id_str_p)                     + 1;
+
+   object_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+
+   if (object_p->hw_words_str_p[0] == NULL)
+   {
+      _sp_assembler_yyerror(ctx_p,
+                              "Failed to allocate string.");
+      return (false);
+   }
+
+   snprintf(object_p->hw_words_str_p[0],
+            len,
+            "%s | 0x0080 | 0x%04x",
+            _SP_INSTR_CODE_SET_CLR_FAF_STR,
+            faf_id);
+
+   /* HW opcode */
+   object_p->hw_words_p[0] = _SP_INSTR_CODE_SET_CLR_FAF;
+
+   // Set c = 1
+   // Set j = faf_id
+   object_p->hw_words_p[0] |= 0x0080;
+   object_p->hw_words_p[0] |= (0x007f & faf_id);
+
+   object_p->num_valid_hw_words = 1;
+
+   dll_add_to_back(&(ctx_p->instruction_list),
+                   &(object_p->dll_node));
+
+   /* Clear context values */
+   _sp_clear_ctx_instruction_values(ctx_p);
+
+   return (true);
+}
+
+
+#line 5196 "sp_assembler.tab.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -4977,55 +5244,74 @@ extern int _sp_assembler_yydebug;
     START_RESULT_ARRAY = 272,
     RIGHT_BRACKET = 273,
     ETH_HXS = 274,
-    IPV4_HXS = 275,
-    IPV6_HXS = 276,
-    OTH_L3_HXS = 277,
-    TCP_HXS = 278,
-    UDP_HXS = 279,
-    OTH_L4_HXS = 280,
-    RETURN_SUB = 281,
-    RETURN_HXS = 282,
-    END_PARSE = 283,
-    CONCAT = 284,
-    WR0 = 285,
-    WR1 = 286,
-    CLEAR = 287,
-    ONESCOMP = 288,
-    AND = 289,
-    OR = 290,
-    XOR = 291,
-    SHIFT_LEFT = 292,
-    SHIFT_RIGHT = 293,
-    IF = 294,
-    START_FRAME_WINDOW = 295,
-    QUESTION = 296,
-    PIPE = 297,
-    AMPERSAND = 298,
-    HXS = 299,
-    BRIDGE = 300,
-    START_PARAMETER_ARRAY = 301,
-    EQUAL = 302,
-    NOT_EQUAL = 303,
-    GREATER_THAN = 304,
-    LESS_THAN = 305,
-    GREATER_THAN_EQUAL = 306,
-    LESS_THAN_EQUAL = 307,
-    OPEN_PAREN = 308,
-    CLOSE_PAREN = 309,
-    COMMA = 310,
-    CONTEXT_LIST = 311,
-    PLUS = 312,
-    MINUS = 313,
-    NXT_ETH_TYPE = 314,
-    NXT_IP_PROTO = 315,
-    UINT6_TYPE = 316,
-    UINT7_TYPE = 317,
-    UINT8_TYPE = 318,
-    UINT16_TYPE = 319,
-    UINT32_TYPE = 320,
-    UINT48_TYPE = 321,
-    UINT64_TYPE = 322,
-    DEC_VALUE = 323
+    LLCSNAP_HXS = 275,
+    VLAN_HXS = 276,
+    PPPOE_HXS = 277,
+    MPLS_HXS = 278,
+    ARP_HXS = 279,
+    IP_HXS = 280,
+    IPV4_HXS = 281,
+    IPV6_HXS = 282,
+    GRE_HXS = 283,
+    MINENCAP_HXS = 284,
+    OTH_L3_HXS = 285,
+    TCP_HXS = 286,
+    UDP_HXS = 287,
+    IPSEC_HXS = 288,
+    SCTP_HXS = 289,
+    DCCP_HXS = 290,
+    OTH_L4_HXS = 291,
+    GTP_HXS = 292,
+    ESP_HXS = 293,
+    OTH_L5_HXS = 294,
+    FINAL_SHELL_HXS = 295,
+    RETURN_SUB = 296,
+    RETURN_HXS = 297,
+    CLR_FAF = 298,
+    SET_FAF = 299,
+    END_PARSE = 300,
+    CONCAT = 301,
+    WR0 = 302,
+    WR1 = 303,
+    CLEAR = 304,
+    ONESCOMP = 305,
+    AND = 306,
+    OR = 307,
+    XOR = 308,
+    SHIFT_LEFT = 309,
+    SHIFT_RIGHT = 310,
+    IF = 311,
+    START_FRAME_WINDOW = 312,
+    QUESTION = 313,
+    PIPE = 314,
+    AMPERSAND = 315,
+    HXS = 316,
+    BRIDGE = 317,
+    START_PARAMETER_ARRAY = 318,
+    EQUAL = 319,
+    NOT_EQUAL = 320,
+    GREATER_THAN = 321,
+    LESS_THAN = 322,
+    GREATER_THAN_EQUAL = 323,
+    LESS_THAN_EQUAL = 324,
+    OPEN_PAREN = 325,
+    CLOSE_PAREN = 326,
+    COMMA = 327,
+    CONTEXT_LIST = 328,
+    PLUS = 329,
+    MINUS = 330,
+    NXT_ETH_TYPE = 331,
+    NXT_IP_PROTO = 332,
+    NXT_TCPUDP_PORTS = 333,
+    UINT6_TYPE = 334,
+    UINT7_TYPE = 335,
+    UINT8_TYPE = 336,
+    UINT16_TYPE = 337,
+    UINT32_TYPE = 338,
+    UINT48_TYPE = 339,
+    UINT64_TYPE = 340,
+    DEC_VALUE = 341,
+    FAF_ID = 342
   };
 #endif
 
@@ -5034,13 +5320,13 @@ extern int _sp_assembler_yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 4901 "sp_assembler.y" /* yacc.c:355  */
+#line 5168 "sp_assembler.y" /* yacc.c:355  */
 
           int   integer;
           char *string;
        
 
-#line 5044 "sp_assembler.tab.c" /* yacc.c:355  */
+#line 5330 "sp_assembler.tab.c" /* yacc.c:355  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -5054,7 +5340,7 @@ int _sp_assembler_yyparse (_sp_assembler_parser_context_t *_sp_assembler_context
 
 /* Copy the second part of user declarations.  */
 
-#line 5058 "sp_assembler.tab.c" /* yacc.c:358  */
+#line 5344 "sp_assembler.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -5296,21 +5582,21 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   222
+#define YYLAST   329
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  69
+#define YYNTOKENS  88
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  42
+#define YYNNTS  43
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  132
+#define YYNRULES  159
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  222
+#define YYNSTATES  257
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   323
+#define YYMAXUTOK   342
 
 #define YYTRANSLATE(YYX)                                                \
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -5351,27 +5637,31 @@ static const yytype_uint8 yytranslate[] =
       35,    36,    37,    38,    39,    40,    41,    42,    43,    44,
       45,    46,    47,    48,    49,    50,    51,    52,    53,    54,
       55,    56,    57,    58,    59,    60,    61,    62,    63,    64,
-      65,    66,    67,    68
+      65,    66,    67,    68,    69,    70,    71,    72,    73,    74,
+      75,    76,    77,    78,    79,    80,    81,    82,    83,    84,
+      85,    86,    87
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,  4994,  4994,  4995,  4998,  4999,  5000,  5001,  5002,  5003,
-    5004,  5005,  5006,  5007,  5008,  5009,  5010,  5011,  5012,  5013,
-    5014,  5015,  5016,  5017,  5018,  5019,  5020,  5021,  5022,  5025,
-    5027,  5029,  5031,  5033,  5035,  5037,  5041,  5047,  5051,  5055,
-    5059,  5063,  5067,  5071,  5073,  5075,  5077,  5079,  5083,  5085,
-    5087,  5089,  5091,  5093,  5095,  5097,  5099,  5103,  5106,  5109,
-    5112,  5115,  5119,  5123,  5128,  5133,  5138,  5143,  5148,  5153,
-    5157,  5159,  5163,  5166,  5169,  5173,  5177,  5181,  5186,  5191,
-    5196,  5201,  5206,  5212,  5216,  5220,  5222,  5226,  5228,  5232,
-    5234,  5238,  5240,  5244,  5248,  5252,  5256,  5260,  5262,  5266,
-    5270,  5274,  5278,  5280,  5282,  5284,  5286,  5290,  5292,  5294,
-    5296,  5298,  5300,  5304,  5306,  5310,  5314,  5318,  5320,  5324,
-    5326,  5330,  5334,  5338,  5340,  5342,  5344,  5348,  5350,  5352,
-    5354,  5358,  5360
+       0,  5280,  5280,  5281,  5284,  5285,  5286,  5287,  5288,  5289,
+    5290,  5291,  5292,  5293,  5294,  5295,  5296,  5297,  5298,  5299,
+    5300,  5301,  5302,  5303,  5304,  5305,  5306,  5307,  5308,  5309,
+    5312,  5314,  5316,  5318,  5320,  5322,  5324,  5328,  5334,  5338,
+    5342,  5346,  5350,  5354,  5358,  5360,  5362,  5364,  5366,  5370,
+    5372,  5374,  5376,  5378,  5380,  5382,  5384,  5386,  5388,  5390,
+    5392,  5394,  5396,  5398,  5400,  5402,  5404,  5406,  5408,  5410,
+    5412,  5414,  5416,  5420,  5423,  5426,  5429,  5432,  5435,  5438,
+    5442,  5446,  5450,  5454,  5459,  5464,  5469,  5474,  5479,  5484,
+    5488,  5490,  5492,  5496,  5499,  5502,  5505,  5508,  5512,  5516,
+    5520,  5524,  5528,  5533,  5538,  5543,  5548,  5553,  5559,  5563,
+    5567,  5569,  5573,  5575,  5579,  5581,  5585,  5587,  5591,  5595,
+    5599,  5603,  5607,  5609,  5613,  5617,  5621,  5625,  5627,  5631,
+    5633,  5635,  5637,  5639,  5643,  5645,  5647,  5649,  5651,  5653,
+    5657,  5659,  5663,  5667,  5671,  5673,  5677,  5679,  5683,  5687,
+    5691,  5693,  5695,  5697,  5701,  5703,  5705,  5707,  5711,  5713
 };
 #endif
 
@@ -5383,23 +5673,27 @@ static const char *const yytname[] =
   "$end", "error", "$undefined", "ALPHA_NUMERIC_WORD", "JMP", "GOSUB",
   "COLON", "NOP", "START_RAW_INSTRUCTION", "HEX_WORD", "HEX_VALUE",
   "ASSIGN", "INCREMENT", "WINDOW_OFFSET", "HEADER_BASE", "RETURN",
-  "SET_BITS", "START_RESULT_ARRAY", "RIGHT_BRACKET", "ETH_HXS", "IPV4_HXS",
-  "IPV6_HXS", "OTH_L3_HXS", "TCP_HXS", "UDP_HXS", "OTH_L4_HXS",
-  "RETURN_SUB", "RETURN_HXS", "END_PARSE", "CONCAT", "WR0", "WR1", "CLEAR",
-  "ONESCOMP", "AND", "OR", "XOR", "SHIFT_LEFT", "SHIFT_RIGHT", "IF",
-  "START_FRAME_WINDOW", "QUESTION", "PIPE", "AMPERSAND", "HXS", "BRIDGE",
-  "START_PARAMETER_ARRAY", "EQUAL", "NOT_EQUAL", "GREATER_THAN",
+  "SET_BITS", "START_RESULT_ARRAY", "RIGHT_BRACKET", "ETH_HXS",
+  "LLCSNAP_HXS", "VLAN_HXS", "PPPOE_HXS", "MPLS_HXS", "ARP_HXS", "IP_HXS",
+  "IPV4_HXS", "IPV6_HXS", "GRE_HXS", "MINENCAP_HXS", "OTH_L3_HXS",
+  "TCP_HXS", "UDP_HXS", "IPSEC_HXS", "SCTP_HXS", "DCCP_HXS", "OTH_L4_HXS",
+  "GTP_HXS", "ESP_HXS", "OTH_L5_HXS", "FINAL_SHELL_HXS", "RETURN_SUB",
+  "RETURN_HXS", "CLR_FAF", "SET_FAF", "END_PARSE", "CONCAT", "WR0", "WR1",
+  "CLEAR", "ONESCOMP", "AND", "OR", "XOR", "SHIFT_LEFT", "SHIFT_RIGHT",
+  "IF", "START_FRAME_WINDOW", "QUESTION", "PIPE", "AMPERSAND", "HXS",
+  "BRIDGE", "START_PARAMETER_ARRAY", "EQUAL", "NOT_EQUAL", "GREATER_THAN",
   "LESS_THAN", "GREATER_THAN_EQUAL", "LESS_THAN_EQUAL", "OPEN_PAREN",
   "CLOSE_PAREN", "COMMA", "CONTEXT_LIST", "PLUS", "MINUS", "NXT_ETH_TYPE",
-  "NXT_IP_PROTO", "UINT6_TYPE", "UINT7_TYPE", "UINT8_TYPE", "UINT16_TYPE",
-  "UINT32_TYPE", "UINT48_TYPE", "UINT64_TYPE", "DEC_VALUE", "$accept",
-  "input", "instruction", "variable_type", "define_variable", "label",
-  "five_hex_words", "four_hex_words", "three_hex_words", "two_hex_words",
-  "one_hex_word", "raw_instruction", "hard_examination", "hxs", "jmp",
-  "gosub", "nop", "advance_hb_by_wo", "working_register",
-  "result_array_range", "immediate_value", "load_bytes_ra_to_wr",
-  "store_wr_to_ra", "store_iv_to_ra", "load_sv_to_wo", "add_sv_to_wo",
-  "modify_wo_by_wr", "zero_wr", "ones_comp_wr1_to_wr0", "return_sub",
+  "NXT_IP_PROTO", "NXT_TCPUDP_PORTS", "UINT6_TYPE", "UINT7_TYPE",
+  "UINT8_TYPE", "UINT16_TYPE", "UINT32_TYPE", "UINT48_TYPE", "UINT64_TYPE",
+  "DEC_VALUE", "FAF_ID", "$accept", "input", "instruction",
+  "variable_type", "define_variable", "label", "five_hex_words",
+  "four_hex_words", "three_hex_words", "two_hex_words", "one_hex_word",
+  "raw_instruction", "hard_examination", "hxs", "jmp", "gosub", "nop",
+  "advance_hb_by_wo", "working_register", "result_array_range",
+  "immediate_value", "load_bytes_ra_to_wr", "store_wr_to_ra",
+  "store_iv_to_ra", "load_sv_to_wo", "add_sv_to_wo", "modify_wo_by_wr",
+  "zero_wr", "ones_comp_wr1_to_wr0", "return_sub", "set_clr_faf",
   "bitwise_operator", "operator_set1", "addsub_operator",
   "bitwise_wr_wr_to_wr", "bitwise_wr_iv_to_wr", "addsub_wr_wr_to_wr",
   "addsub_wr_iv_to_wr", "shift_left_wr_by_sv", "shift_right_wr_by_sv",
@@ -5418,14 +5712,16 @@ static const yytype_uint16 yytoknum[] =
      285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
      295,   296,   297,   298,   299,   300,   301,   302,   303,   304,
      305,   306,   307,   308,   309,   310,   311,   312,   313,   314,
-     315,   316,   317,   318,   319,   320,   321,   322,   323
+     315,   316,   317,   318,   319,   320,   321,   322,   323,   324,
+     325,   326,   327,   328,   329,   330,   331,   332,   333,   334,
+     335,   336,   337,   338,   339,   340,   341,   342
 };
 # endif
 
-#define YYPACT_NINF -77
+#define YYPACT_NINF -95
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-77)))
+  (!!((Yystate) == (-95)))
 
 #define YYTABLE_NINF -1
 
@@ -5436,29 +5732,32 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-     -77,    15,   -77,    24,    91,   133,   -77,    12,    13,    23,
-     -24,   -77,   -77,   -77,    60,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,   -77,   -77,    51,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,    20,    48,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,   -77,    29,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,   -77,    19,   143,   -77,   -77,   -77,    64,    19,
-     166,   -77,    63,   -77,   -77,   -77,   -77,   -77,    76,    76,
-      96,    33,   -77,   -77,    -4,    43,    83,    83,    76,    65,
-     -77,   101,   -77,   -77,    90,   118,   -77,   -77,   113,   -77,
-     -77,   -77,   -77,   -77,   -77,   -77,    55,   -77,    41,    41,
-      58,    62,   161,   -77,   127,    66,    69,   -77,   132,   -77,
-     -77,   -77,   -77,   131,    -2,   131,     1,   115,   122,   -77,
-     -77,     7,    87,    99,    56,   -77,   -77,   -77,   -77,   -77,
-      76,    73,   102,    82,    80,   -77,   -77,   -77,   -77,   -77,
-     -77,   128,   167,    19,   141,   169,    19,   140,   -77,   -77,
-     -77,   -77,   -77,   108,   116,   -77,   -77,   -77,   -77,   124,
-     130,   -77,   -77,   -77,    19,   196,   -77,    19,   197,   -77,
-     183,   184,   187,   188,   204,     8,   205,    27,   -77,   -77,
-     -77,   -77,   -77,   203,    19,   -77,   206,    19,    19,   207,
-      19,   208,   210,    28,   211,    31,   -77,   209,    19,   -77,
-     212,    19,    19,   213,    19,   214,   216,   -77,   217,   -77,
-     -77,   -77
+     -95,    23,   -95,    12,   143,   203,   -95,    -4,    39,    17,
+     -62,   -95,   -52,   -45,   -95,   -95,    51,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,   -95,   -95,    45,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,    34,    41,   -95,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,   -95,   -95,     9,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,    -6,   246,   -95,   -95,   -95,    28,    37,    -6,   284,
+      60,    86,   -95,   -95,   -95,   -95,   -95,    44,    44,    87,
+      26,   -95,   -95,   -95,   -95,    -1,    24,   103,   103,    44,
+     -44,   -95,   119,    67,    75,    46,   -30,   129,    78,    80,
+      48,   128,   -95,   -95,   -95,   -95,   -95,   -95,   -95,    52,
+     -95,    40,    40,    53,    54,    58,   -95,   136,    57,    62,
+     -95,   144,   -95,   -95,   -95,   -95,    61,   -95,     0,    64,
+      65,   -95,    61,   -95,     1,    66,    70,   -95,   140,   142,
+     -95,   -95,    10,    29,    92,    43,   -95,   -95,   -95,   -95,
+     -95,    44,    98,   124,    79,   101,   -95,   -95,   -95,   -95,
+     -95,   -95,   141,   184,    -6,   -95,   -95,   145,   185,    -6,
+     -95,   -95,   183,   -95,   -95,   -95,   -95,   -95,   108,   109,
+     -95,   -95,   -95,   -95,   110,   111,   -95,   -95,   -95,    -6,
+     195,   -95,    -6,   196,   -95,   182,   187,   189,   190,   199,
+       4,   200,    15,   -95,   -95,   -95,   -95,   -95,   204,    -6,
+     -95,   205,    -6,    -6,   206,    -6,   209,   210,    16,   211,
+      19,   -95,   212,    -6,   -95,   238,    -6,    -6,   213,    -6,
+     214,   243,   -95,   244,   -95,   -95,   -95
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -5466,154 +5765,182 @@ static const yytype_int16 yypact[] =
      means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       2,     0,     1,     0,     0,     0,    83,     0,     0,     0,
-       0,   101,    85,    86,     0,   100,    29,    30,    31,    32,
-      33,    34,    35,     3,     0,    28,     4,     5,     6,     7,
-       9,    10,     0,     0,    11,    12,    13,    14,    15,    16,
-      17,    18,     8,    19,    20,    21,    22,    23,    24,    25,
-      26,    27,    37,    61,    48,    49,    50,    51,    52,    53,
-      54,    55,    56,    58,     0,    70,    71,    59,    74,    58,
-       0,    72,    42,    43,    44,    45,    46,    47,     0,     0,
-       0,     0,    99,    36,     0,     0,     0,     0,     0,     0,
-      57,     0,    62,    60,     0,     0,    75,    73,    41,    90,
-      89,    97,    95,    98,    96,    84,     0,    88,    85,    86,
-       0,     0,     0,    91,   124,     0,     0,    92,   126,   121,
-     122,    93,    94,     0,     0,     0,     0,    40,     0,   113,
-     114,     0,     0,     0,     0,   102,   104,   106,   105,   103,
-       0,     0,     0,     0,     0,   107,   108,   110,   109,   112,
-     111,     0,     0,    58,     0,     0,    58,    39,    87,   117,
-     119,   118,   120,     0,     0,   128,   115,   116,   123,     0,
-       0,   130,   125,    63,    58,     0,    76,    58,     0,    38,
-       0,     0,     0,     0,     0,    65,     0,    78,   131,   127,
-     132,   129,    64,     0,    58,    77,     0,    58,    58,     0,
-      58,     0,     0,    67,     0,    80,    66,     0,    58,    79,
-       0,    58,    58,     0,    58,     0,     0,    69,     0,    82,
-      68,    81
+       2,     0,     1,     0,     0,     0,   108,     0,     0,     0,
+       0,   126,     0,     0,   110,   111,     0,   125,    30,    31,
+      32,    33,    34,    35,    36,     3,     0,    29,     4,     5,
+       6,     7,     9,    10,     0,     0,    11,    12,    13,    14,
+      15,    16,    17,    18,     8,    26,    19,    20,    21,    22,
+      23,    24,    25,    27,    28,    38,    79,    49,    50,    51,
+      52,    53,    54,    55,    56,    57,    58,    59,    60,    61,
+      62,    63,    64,    65,    66,    67,    68,    69,    70,    71,
+      72,    74,     0,    90,    91,    92,    75,    97,    74,     0,
+      93,    43,    44,    45,    46,    47,    48,     0,     0,     0,
+       0,   127,   128,   124,    37,     0,     0,     0,     0,     0,
+       0,    73,     0,    81,    77,     0,     0,     0,    99,    95,
+       0,    42,   115,   114,   122,   120,   123,   121,   109,     0,
+     113,   110,   111,     0,     0,     0,   116,   151,     0,     0,
+     117,   153,   148,   149,   118,   119,     0,    80,     0,     0,
+       0,    76,     0,    98,     0,     0,     0,    94,    41,     0,
+     140,   141,     0,     0,     0,     0,   129,   131,   133,   132,
+     130,     0,     0,     0,     0,     0,   134,   135,   137,   136,
+     139,   138,     0,     0,    74,    82,    78,     0,     0,    74,
+     100,    96,    40,   112,   144,   146,   145,   147,     0,     0,
+     155,   142,   143,   150,     0,     0,   157,   152,    83,    74,
+       0,   101,    74,     0,    39,     0,     0,     0,     0,     0,
+      85,     0,   103,   158,   154,   159,   156,    84,     0,    74,
+     102,     0,    74,    74,     0,    74,     0,     0,    87,     0,
+     105,    86,     0,    74,   104,     0,    74,    74,     0,    74,
+       0,     0,    89,     0,   107,    88,   106
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77,    -3,   -69,   -77,   -77,   -77,   -77,   -13,    17,
-     -76,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,    97,   112,   -77,   -77,   -77,   -77,   -77,   -77,   -77,
-     -77,   -77
+     -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,   -95,    -3,   -88,   -95,   -95,   -95,   -95,   -15,    14,
+     -94,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,   -95,    63,   118,   -95,   -95,   -95,   -95,   -95,   -95,
+     -95,   -95,   -95
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int16 yydefgoto[] =
 {
-      -1,     1,    23,    24,    25,    26,    73,    74,    75,    76,
-      77,    27,    67,    91,    28,    29,    30,    31,    32,    33,
-     102,    34,    35,    36,    37,    38,    39,    40,    41,    42,
-     140,   151,   131,    43,    44,    45,    46,    47,    48,    49,
-      50,    51
+      -1,     1,    25,    26,    27,    28,    92,    93,    94,    95,
+      96,    29,    86,   112,    30,    31,    32,    33,    34,    35,
+     125,    36,    37,    38,    39,    40,    41,    42,    43,    44,
+      45,   171,   182,   162,    46,    47,    48,    49,    50,    51,
+      52,    53,    54
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
      positive, shift that token.  If negative, reduce the rule whose
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
-static const yytype_uint8 yytable[] =
+static const yytype_uint16 yytable[] =
 {
-      95,    82,    71,   104,   152,    99,   100,   155,   114,   118,
-     119,   120,   122,    10,   193,     2,    99,   100,     3,     4,
-       5,    72,     6,     7,    78,    79,   108,   109,     8,     9,
-      52,    84,    10,   196,   207,    80,   110,   210,   159,   106,
-     153,    11,   111,   156,    81,    12,    13,    14,    15,    85,
-     194,   107,    99,   100,    83,   160,   162,    86,    87,    88,
-      10,    93,   164,    90,   167,   101,   103,    97,    89,   197,
-     208,   112,    98,   211,   165,   121,    16,    17,    18,    19,
-      20,    21,    22,   115,   175,    99,   100,   178,   170,   116,
-      12,    13,    99,   100,    53,   123,    99,   100,   129,   130,
-     171,   113,   117,    94,   124,   184,    12,    13,   186,   105,
-      54,    55,    56,    57,    58,    59,    60,   161,    61,    62,
-     125,   126,   127,   128,   157,   199,   133,   166,   201,   202,
-     134,   204,    63,   141,   142,    64,    68,   143,   144,   213,
-     158,   168,   215,   216,   163,   218,    92,   169,   172,   179,
-      65,    66,    54,    55,    56,    57,    58,    59,    60,   173,
-      61,    62,    54,    55,    56,    57,    58,    59,    60,    96,
-      61,    62,   176,   174,    69,   177,   180,    70,   145,   146,
-     147,   148,   149,   150,   181,    54,    55,    56,    57,    58,
-      59,    60,   182,    61,    62,   135,   136,   137,   183,   185,
-     187,   188,   189,   138,   139,   190,   191,   192,   195,   198,
-     203,   205,   200,   206,   209,   212,   217,   219,   214,   220,
-     221,   132,   154
+     117,   103,    90,   146,   127,    91,   183,   188,   122,   123,
+     228,   137,   141,   142,   143,   145,    10,   152,    55,   122,
+     123,   231,   242,     2,   100,   245,     3,     4,     5,    99,
+       6,     7,   129,   122,   123,   101,     8,     9,   122,   123,
+      10,    10,   102,   147,   130,   105,   131,   132,   104,   199,
+      97,    98,   109,   122,   123,   111,   133,   153,   194,   184,
+     189,   200,   134,   229,    11,   110,    12,    13,   195,   197,
+      14,    15,    16,    17,   232,   243,   196,   202,   246,   114,
+     106,   138,   124,   126,   115,   205,   119,   139,   107,   108,
+     135,    14,    15,   116,   144,   121,   210,   206,    14,    15,
+     128,   213,    18,    19,    20,    21,    22,    23,    24,   166,
+     167,   168,   122,   123,   160,   161,   120,   169,   170,   136,
+     140,   219,   148,   149,   221,   176,   177,   178,   179,   180,
+     181,   150,   154,   151,   155,   157,   156,   158,   159,   164,
+     165,   234,   172,   173,   236,   237,    56,   239,   174,   192,
+     175,   185,   186,   190,   198,   248,   201,   191,   250,   251,
+     193,   253,    57,    58,    59,    60,    61,    62,    63,    64,
+      65,    66,    67,    68,    69,    70,    71,    72,    73,    74,
+      75,    76,    77,    78,   203,    79,   204,   207,    80,   208,
+     209,   212,   214,   211,   215,   216,   217,   218,   220,   222,
+     223,    81,   227,   230,    82,   224,    87,   225,   226,   238,
+     233,   235,   240,   241,   244,   187,   252,   254,   247,    83,
+      84,    85,    57,    58,    59,    60,    61,    62,    63,    64,
+      65,    66,    67,    68,    69,    70,    71,    72,    73,    74,
+      75,    76,    77,    78,   249,    79,   255,   256,    80,   113,
+     163,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,    88,     0,     0,    89,    57,    58,    59,    60,    61,
+      62,    63,    64,    65,    66,    67,    68,    69,    70,    71,
+      72,    73,    74,    75,    76,    77,    78,   118,    79,     0,
+       0,    80,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,    57,    58,    59,    60,    61,    62,    63,
+      64,    65,    66,    67,    68,    69,    70,    71,    72,    73,
+      74,    75,    76,    77,    78,     0,    79,     0,     0,    80
 };
 
-static const yytype_uint8 yycheck[] =
+static const yytype_int16 yycheck[] =
 {
-      69,    14,     5,    79,     6,     9,    10,     6,    84,    85,
-      86,    87,    88,    17,     6,     0,     9,    10,     3,     4,
-       5,     9,     7,     8,    11,    12,    30,    31,    13,    14,
-       6,    11,    17,     6,     6,    12,    40,     6,    31,     6,
-      42,    26,    46,    42,    68,    30,    31,    32,    33,    29,
-      42,    18,     9,    10,     3,   131,   132,    37,    38,    11,
-      17,    64,     6,    44,   140,    78,    79,    70,    39,    42,
-      42,    84,     9,    42,    18,    88,    61,    62,    63,    64,
-      65,    66,    67,    40,   153,     9,    10,   156,     6,    46,
-      30,    31,     9,    10,     3,    30,     9,    10,    57,    58,
-      18,    84,    85,    39,     3,   174,    30,    31,   177,    13,
-      19,    20,    21,    22,    23,    24,    25,    30,    27,    28,
-      30,     3,     9,    68,     9,   194,    68,   140,   197,   198,
-      68,   200,    41,     6,    68,    44,     3,    68,     6,   208,
-      18,    68,   211,   212,    45,   214,     3,    45,    68,     9,
-      59,    60,    19,    20,    21,    22,    23,    24,    25,    31,
-      27,    28,    19,    20,    21,    22,    23,    24,    25,     3,
-      27,    28,    31,     6,    41,     6,    68,    44,    47,    48,
-      49,    50,    51,    52,    68,    19,    20,    21,    22,    23,
-      24,    25,    68,    27,    28,    34,    35,    36,    68,     3,
-       3,    18,    18,    42,    43,    18,    18,     3,     3,     6,
-       3,     3,     6,     3,     3,     6,     3,     3,     6,     3,
-       3,   109,   125
+      88,    16,     5,    47,    98,     9,     6,     6,     9,    10,
+       6,   105,   106,   107,   108,   109,    17,    47,     6,     9,
+      10,     6,     6,     0,    86,     6,     3,     4,     5,    12,
+       7,     8,     6,     9,    10,    87,    13,    14,     9,    10,
+      17,    17,    87,    87,    18,    11,    47,    48,     3,     6,
+      11,    12,    11,     9,    10,    61,    57,    87,    48,    59,
+      59,    18,    63,    59,    41,    56,    43,    44,   162,   163,
+      47,    48,    49,    50,    59,    59,    47,   171,    59,    82,
+      46,    57,    97,    98,    56,     6,    89,    63,    54,    55,
+     105,    47,    48,    56,   109,     9,   184,    18,    47,    48,
+      13,   189,    79,    80,    81,    82,    83,    84,    85,    51,
+      52,    53,     9,    10,    74,    75,    56,    59,    60,   105,
+     106,   209,     3,    56,   212,    64,    65,    66,    67,    68,
+      69,    56,     3,    87,    56,    87,    56,     9,    86,    86,
+      86,   229,     6,    86,   232,   233,     3,   235,    86,     9,
+       6,    87,    87,    87,    62,   243,   171,    87,   246,   247,
+      18,   249,    19,    20,    21,    22,    23,    24,    25,    26,
+      27,    28,    29,    30,    31,    32,    33,    34,    35,    36,
+      37,    38,    39,    40,    86,    42,    62,    86,    45,    48,
+       6,     6,     9,    48,    86,    86,    86,    86,     3,     3,
+      18,    58,     3,     3,    61,    18,     3,    18,    18,     3,
+       6,     6,     3,     3,     3,   152,     3,     3,     6,    76,
+      77,    78,    19,    20,    21,    22,    23,    24,    25,    26,
+      27,    28,    29,    30,    31,    32,    33,    34,    35,    36,
+      37,    38,    39,    40,     6,    42,     3,     3,    45,     3,
+     132,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+      -1,    58,    -1,    -1,    61,    19,    20,    21,    22,    23,
+      24,    25,    26,    27,    28,    29,    30,    31,    32,    33,
+      34,    35,    36,    37,    38,    39,    40,     3,    42,    -1,
+      -1,    45,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+      -1,    -1,    -1,    19,    20,    21,    22,    23,    24,    25,
+      26,    27,    28,    29,    30,    31,    32,    33,    34,    35,
+      36,    37,    38,    39,    40,    -1,    42,    -1,    -1,    45
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    70,     0,     3,     4,     5,     7,     8,    13,    14,
-      17,    26,    30,    31,    32,    33,    61,    62,    63,    64,
-      65,    66,    67,    71,    72,    73,    74,    80,    83,    84,
-      85,    86,    87,    88,    90,    91,    92,    93,    94,    95,
-      96,    97,    98,   102,   103,   104,   105,   106,   107,   108,
-     109,   110,     6,     3,    19,    20,    21,    22,    23,    24,
-      25,    27,    28,    41,    44,    59,    60,    81,     3,    41,
-      44,    81,     9,    75,    76,    77,    78,    79,    11,    12,
-      12,    68,    87,     3,    11,    29,    37,    38,    11,    39,
-      44,    82,     3,    81,    39,    82,     3,    81,     9,     9,
-      10,    87,    89,    87,    89,    13,     6,    18,    30,    31,
-      40,    46,    87,    88,    89,    40,    46,    88,    89,    89,
-      89,    87,    89,    30,     3,    30,     3,     9,    68,    57,
-      58,   101,   101,    68,    68,    34,    35,    36,    42,    43,
-      99,     6,    68,    68,     6,    47,    48,    49,    50,    51,
-      52,   100,     6,    42,   100,     6,    42,     9,    18,    31,
-      89,    30,    89,    45,     6,    18,    87,    89,    68,    45,
-       6,    18,    68,    31,     6,    82,    31,     6,    82,     9,
-      68,    68,    68,    68,    82,     3,    82,     3,    18,    18,
-      18,    18,     3,     6,    42,     3,     6,    42,     6,    82,
-       6,    82,    82,     3,    82,     3,     3,     6,    42,     3,
-       6,    42,     6,    82,     6,    82,    82,     3,    82,     3,
-       3,     3
+       0,    89,     0,     3,     4,     5,     7,     8,    13,    14,
+      17,    41,    43,    44,    47,    48,    49,    50,    79,    80,
+      81,    82,    83,    84,    85,    90,    91,    92,    93,    99,
+     102,   103,   104,   105,   106,   107,   109,   110,   111,   112,
+     113,   114,   115,   116,   117,   118,   122,   123,   124,   125,
+     126,   127,   128,   129,   130,     6,     3,    19,    20,    21,
+      22,    23,    24,    25,    26,    27,    28,    29,    30,    31,
+      32,    33,    34,    35,    36,    37,    38,    39,    40,    42,
+      45,    58,    61,    76,    77,    78,   100,     3,    58,    61,
+     100,     9,    94,    95,    96,    97,    98,    11,    12,    12,
+      86,    87,    87,   106,     3,    11,    46,    54,    55,    11,
+      56,    61,   101,     3,   100,    56,    56,   101,     3,   100,
+      56,     9,     9,    10,   106,   108,   106,   108,    13,     6,
+      18,    47,    48,    57,    63,   106,   107,   108,    57,    63,
+     107,   108,   108,   108,   106,   108,    47,    87,     3,    56,
+      56,    87,    47,    87,     3,    56,    56,    87,     9,    86,
+      74,    75,   121,   121,    86,    86,    51,    52,    53,    59,
+      60,   119,     6,    86,    86,     6,    64,    65,    66,    67,
+      68,    69,   120,     6,    59,    87,    87,   120,     6,    59,
+      87,    87,     9,    18,    48,   108,    47,   108,    62,     6,
+      18,   106,   108,    86,    62,     6,    18,    86,    48,     6,
+     101,    48,     6,   101,     9,    86,    86,    86,    86,   101,
+       3,   101,     3,    18,    18,    18,    18,     3,     6,    59,
+       3,     6,    59,     6,   101,     6,   101,   101,     3,   101,
+       3,     3,     6,    59,     3,     6,    59,     6,   101,     6,
+     101,   101,     3,   101,     3,     3,     3
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    69,    70,    70,    71,    71,    71,    71,    71,    71,
-      71,    71,    71,    71,    71,    71,    71,    71,    71,    71,
-      71,    71,    71,    71,    71,    71,    71,    71,    71,    72,
-      72,    72,    72,    72,    72,    72,    73,    74,    75,    76,
-      77,    78,    79,    80,    80,    80,    80,    80,    81,    81,
-      81,    81,    81,    81,    81,    81,    81,    82,    82,    83,
-      83,    83,    83,    83,    83,    83,    83,    83,    83,    83,
-      83,    83,    84,    84,    84,    84,    84,    84,    84,    84,
-      84,    84,    84,    85,    86,    87,    87,    88,    88,    89,
-      89,    90,    90,    91,    92,    93,    94,    95,    95,    96,
-      97,    98,    99,    99,    99,    99,    99,   100,   100,   100,
-     100,   100,   100,   101,   101,   102,   103,   104,   104,   105,
-     105,   106,   107,   108,   108,   108,   108,   109,   109,   109,
-     109,   110,   110
+       0,    88,    89,    89,    90,    90,    90,    90,    90,    90,
+      90,    90,    90,    90,    90,    90,    90,    90,    90,    90,
+      90,    90,    90,    90,    90,    90,    90,    90,    90,    90,
+      91,    91,    91,    91,    91,    91,    91,    92,    93,    94,
+      95,    96,    97,    98,    99,    99,    99,    99,    99,   100,
+     100,   100,   100,   100,   100,   100,   100,   100,   100,   100,
+     100,   100,   100,   100,   100,   100,   100,   100,   100,   100,
+     100,   100,   100,   101,   101,   102,   102,   102,   102,   102,
+     102,   102,   102,   102,   102,   102,   102,   102,   102,   102,
+     102,   102,   102,   103,   103,   103,   103,   103,   103,   103,
+     103,   103,   103,   103,   103,   103,   103,   103,   104,   105,
+     106,   106,   107,   107,   108,   108,   109,   109,   110,   111,
+     112,   113,   114,   114,   115,   116,   117,   118,   118,   119,
+     119,   119,   119,   119,   120,   120,   120,   120,   120,   120,
+     121,   121,   122,   123,   124,   124,   125,   125,   126,   127,
+     128,   128,   128,   128,   129,   129,   129,   129,   130,   130
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
@@ -5622,17 +5949,19 @@ static const yytype_uint8 yyr2[] =
        0,     2,     0,     2,     1,     1,     1,     1,     1,     1,
        1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
        1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
-       1,     1,     1,     1,     1,     1,     2,     2,     5,     4,
-       3,     2,     1,     2,     2,     2,     2,     2,     1,     1,
-       1,     1,     1,     1,     1,     1,     1,     1,     0,     2,
-       3,     2,     3,     6,     8,     7,    11,    10,    14,    13,
-       2,     2,     2,     3,     2,     3,     6,     8,     7,    11,
-      10,    14,    13,     1,     3,     1,     1,     5,     3,     1,
-       1,     3,     3,     3,     3,     3,     3,     3,     3,     2,
+       1,     1,     1,     1,     1,     1,     1,     2,     2,     5,
+       4,     3,     2,     1,     2,     2,     2,     2,     2,     1,
        1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
-       1,     1,     1,     1,     1,     5,     5,     5,     5,     5,
-       5,     3,     3,     5,     3,     5,     3,     7,     5,     7,
-       5,     7,     7
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,     1,     1,     1,     0,     2,     4,     3,     5,     2,
+       4,     3,     5,     6,     8,     7,    11,    10,    14,    13,
+       2,     2,     2,     2,     4,     3,     5,     2,     4,     3,
+       5,     6,     8,     7,    11,    10,    14,    13,     1,     3,
+       1,     1,     5,     3,     1,     1,     3,     3,     3,     3,
+       3,     3,     3,     3,     2,     1,     1,     2,     2,     1,
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,     1,     5,     5,     5,     5,     5,     5,     3,     3,
+       5,     3,     5,     3,     7,     5,     7,     5,     7,     7
 };
 
 
@@ -6314,674 +6643,842 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-        case 29:
-#line 5026 "sp_assembler.y" /* yacc.c:1646  */
+        case 30:
+#line 5313 "sp_assembler.y" /* yacc.c:1646  */
     {(yyval.integer) = _sp_uint6_type_e;}
-#line 6321 "sp_assembler.tab.c" /* yacc.c:1646  */
-    break;
-
-  case 30:
-#line 5028 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint7_type_e;}
-#line 6327 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6650 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 5030 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint8_type_e;}
-#line 6333 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5315 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint7_type_e;}
+#line 6656 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 5032 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint16_type_e;}
-#line 6339 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5317 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint8_type_e;}
+#line 6662 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 5034 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint32_type_e;}
-#line 6345 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5319 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint16_type_e;}
+#line 6668 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 5036 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint48_type_e;}
-#line 6351 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5321 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint32_type_e;}
+#line 6674 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 5038 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _sp_uint64_type_e;}
-#line 6357 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5323 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint48_type_e;}
+#line 6680 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 5042 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_define_variable_action(_sp_assembler_context_p, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}
-                                free (yyvsp[0].string);
-                               }
-#line 6365 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5325 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _sp_uint64_type_e;}
+#line 6686 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 5048 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P1(_sp_label_action, (yyvsp[-1].string))}
-#line 6371 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5329 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_define_variable_action(_sp_assembler_context_p, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}
+                                free (yyvsp[0].string);
+                               }
+#line 6694 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 5052 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P5(_sp_five_hex_words_action, (yyvsp[-4].string), (yyvsp[-3].string), (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
-#line 6377 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5335 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P1(_sp_label_action, (yyvsp[-1].string))}
+#line 6700 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 5056 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P4(_sp_four_hex_words_action, (yyvsp[-3].string), (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
-#line 6383 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5339 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P5(_sp_five_hex_words_action, (yyvsp[-4].string), (yyvsp[-3].string), (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
+#line 6706 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 5060 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P3(_sp_three_hex_words_action, (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
-#line 6389 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5343 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P4(_sp_four_hex_words_action, (yyvsp[-3].string), (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
+#line 6712 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 5064 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P2(_sp_two_hex_words_action, (yyvsp[-1].string), (yyvsp[0].string))}
-#line 6395 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5347 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P3(_sp_three_hex_words_action, (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string))}
+#line 6718 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 5068 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P1(_sp_one_hex_word_action, (yyvsp[0].string))}
-#line 6401 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5351 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P2(_sp_two_hex_words_action, (yyvsp[-1].string), (yyvsp[0].string))}
+#line 6724 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 5072 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
-#line 6407 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5355 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P1(_sp_one_hex_word_action, (yyvsp[0].string))}
+#line 6730 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 5074 "sp_assembler.y" /* yacc.c:1646  */
+#line 5359 "sp_assembler.y" /* yacc.c:1646  */
     {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
-#line 6413 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6736 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 5076 "sp_assembler.y" /* yacc.c:1646  */
+#line 5361 "sp_assembler.y" /* yacc.c:1646  */
     {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
-#line 6419 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6742 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 5078 "sp_assembler.y" /* yacc.c:1646  */
+#line 5363 "sp_assembler.y" /* yacc.c:1646  */
     {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
-#line 6425 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6748 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 5080 "sp_assembler.y" /* yacc.c:1646  */
+#line 5365 "sp_assembler.y" /* yacc.c:1646  */
     {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
-#line 6431 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6754 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 5084 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_ETH_HXS_LABEL;}
-#line 6437 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5367 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_raw_instruction_action)}
+#line 6760 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 5086 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_IPV4_HXS_LABEL;}
-#line 6443 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5371 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_ETH_HXS_LABEL;}
+#line 6766 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 5088 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_IPV6_HXS_LABEL;}
-#line 6449 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5373 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_LLC_SNAP_HXS_LABEL;}
+#line 6772 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 5090 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_OTH_L3_HXS_LABEL;}
-#line 6455 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5375 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_VLAN_HXS_LABEL;}
+#line 6778 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 5092 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_TCP_HXS_LABEL;}
-#line 6461 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5377 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_PPPOE_PPP_HXS_LABEL;}
+#line 6784 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 5094 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_UDP_HXS_LABEL;}
-#line 6467 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5379 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_MPLS_HXS_LABEL;}
+#line 6790 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 5096 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_OTH_L4_HXS_LABEL;}
-#line 6473 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5381 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_ARP_HXS_LABEL;}
+#line 6796 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 5098 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_RETURN_HXS_LABEL;}
-#line 6479 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5383 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_IP_HXS_LABEL;}
+#line 6802 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 5100 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = _SP_END_PARSE_LABEL;}
-#line 6485 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5385 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_IPV4_HXS_LABEL;}
+#line 6808 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 5104 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = true;}
-#line 6491 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5387 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_IPV6_HXS_LABEL;}
+#line 6814 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 5106 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = false;}
-#line 6497 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5389 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_GRE_HXS_LABEL;}
+#line 6820 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 5110 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, false)) {return (1);}
-                               }
-#line 6504 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5391 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_MINENCAP_HXS_LABEL;}
+#line 6826 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 60:
-#line 5113 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, false)) {return (1);}
-                               }
-#line 6511 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5393 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_OTH_L3_HXS_LABEL;}
+#line 6832 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 61:
-#line 5116 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, false)) {return (1);}
-                                free (yyvsp[0].string);
-                               }
-#line 6519 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5395 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_TCP_HXS_LABEL;}
+#line 6838 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 62:
-#line 5120 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, false)) {return (1);}
-                                free (yyvsp[0].string);
-                               }
-#line 6527 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5397 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_UDP_HXS_LABEL;}
+#line 6844 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 63:
-#line 5124 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_if_wr0_wr1_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-4].string);
-                               }
-#line 6535 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5399 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_IPSEC_HXS_LABEL;}
+#line 6850 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 64:
-#line 5129 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case1dj_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-4].string); free (yyvsp[0].string);
-                               }
-#line 6543 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5401 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_SCTP_HXS_LABEL;}
+#line 6856 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 65:
-#line 5134 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case2dc_action(_sp_assembler_context_p, (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-3].string); free (yyvsp[0].string);
-                               }
-#line 6551 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5403 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_DCCP_HXS_LABEL;}
+#line 6862 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 66:
-#line 5139 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case2dj_action(_sp_assembler_context_p, (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
-                               }
-#line 6559 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5405 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_OTH_L4_HXS_LABEL;}
+#line 6868 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 67:
-#line 5144 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case3dc_action(_sp_assembler_context_p, (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
-                               }
-#line 6567 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5407 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_GTP_HXS_LABEL;}
+#line 6874 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 5149 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case3dj_action(_sp_assembler_context_p, (yyvsp[-10].string), (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-11].integer), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-10].string); free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
-                               }
-#line 6575 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5409 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_ESP_HXS_LABEL;}
+#line 6880 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 69:
-#line 5154 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case4dc_action(_sp_assembler_context_p, (yyvsp[-9].string), (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-10].integer), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
-                                free (yyvsp[-9].string); free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
-                               }
-#line 6583 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5411 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_OTH_L5_HXS_LABEL;}
+#line 6886 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 70:
-#line 5158 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_jmp_nxt_eth_type_action)}
-#line 6589 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5413 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_FINAL_SHELL_HXS_LABEL;}
+#line 6892 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 71:
-#line 5160 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_jmp_nxt_ip_proto_action)}
-#line 6595 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5415 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_RETURN_HXS_LABEL;}
+#line 6898 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 5164 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, true)) {return (1);}
-                               }
-#line 6602 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5417 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = _SP_END_PARSE_LABEL;}
+#line 6904 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 5167 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, true)) {return (1);}
-                               }
-#line 6609 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5421 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = true;}
+#line 6910 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 5170 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, true)) {return (1);}
-                                free (yyvsp[0].string);
-                               }
-#line 6617 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5423 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = false;}
+#line 6916 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 75:
-#line 5174 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, true)) {return (1);}
-                                free (yyvsp[0].string);
+#line 5427 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, false, false, 0)) {return (1);}
                                }
-#line 6625 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6923 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 5178 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_if_wr0_wr1_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-4].string);
+#line 5430 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), false, false, true, (yyvsp[0].integer))) {return (1);}
                                }
-#line 6633 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6930 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 5182 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case1dj_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-4].string); free (yyvsp[0].string);
+#line 5433 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, false, false, 0)) {return (1);}
                                }
-#line 6641 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6937 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 78:
-#line 5187 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case2dc_action(_sp_assembler_context_p, (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-3].string); free (yyvsp[0].string);
+#line 5436 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), true, false, true, (yyvsp[0].integer))) {return (1);}
                                }
-#line 6649 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6944 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 79:
-#line 5192 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case2dj_action(_sp_assembler_context_p, (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+#line 5439 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, false, false, 0)) {return (1);}
+                                free (yyvsp[0].string);
                                }
-#line 6657 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6952 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 80:
-#line 5197 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case3dc_action(_sp_assembler_context_p, (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+#line 5443 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), false, false, true, (yyvsp[0].integer))) {return (1);}
+                                free (yyvsp[-2].string);
                                }
-#line 6665 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6960 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 81:
-#line 5202 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case3dj_action(_sp_assembler_context_p, (yyvsp[-10].string), (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-11].integer), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-10].string); free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+#line 5447 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, false, false, 0)) {return (1);}
+                                free (yyvsp[0].string);
                                }
-#line 6673 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6968 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 82:
-#line 5207 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_jmp_label_case4dc_action(_sp_assembler_context_p, (yyvsp[-9].string), (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-10].integer), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
-                                free (yyvsp[-9].string); free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+#line 5451 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), true, false, true, (yyvsp[0].integer))) {return (1);}
+                                free (yyvsp[-2].string);
                                }
-#line 6681 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 6976 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 5213 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_nop_action)}
-#line 6687 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5455 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_if_wr0_wr1_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-4].string);
+                               }
+#line 6984 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 5217 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_advance_hb_by_wo_action)}
-#line 6693 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5460 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case1dj_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 6992 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 5221 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = 0;}
-#line 6699 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5465 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case2dc_action(_sp_assembler_context_p, (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7000 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 5223 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = 1;}
-#line 6705 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5470 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case2dj_action(_sp_assembler_context_p, (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 7008 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 5227 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_result_array_range_action(_sp_assembler_context_p, (yyvsp[-3].integer), (yyvsp[-1].integer), false)) {return (1);}}
-#line 6711 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5475 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case3dc_action(_sp_assembler_context_p, (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7016 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 5229 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_result_array_range_action(_sp_assembler_context_p, (yyvsp[-1].integer), (yyvsp[-1].integer), false)) {return (1);}}
-#line 6717 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5480 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case3dj_action(_sp_assembler_context_p, (yyvsp[-10].string), (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-11].integer), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-10].string); free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 7024 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 5233 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = (yyvsp[0].string);}
-#line 6723 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5485 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case4dc_action(_sp_assembler_context_p, (yyvsp[-9].string), (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-10].integer), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), false)) {return (1);}
+                                free (yyvsp[-9].string); free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7032 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 5235 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.string) = (yyvsp[0].string);}
-#line 6729 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5489 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_jmp_nxt_eth_type_action)}
+#line 7038 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 5239 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_ra_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), true)) {return (1);}}
-#line 6735 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5491 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_jmp_nxt_ip_proto_action)}
+#line 7044 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 92:
-#line 5241 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_ra_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), false)) {return (1);}}
-#line 6741 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5493 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_jmp_nxt_tcpudp_ports_action)}
+#line 7050 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 93:
-#line 5245 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_store_wr_to_ra_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
-#line 6747 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5497 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, true, false, 0)) {return (1);}
+                               }
+#line 7057 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 94:
-#line 5249 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P1(_sp_store_iv_to_ra_action, (yyvsp[0].string))}
-#line 6753 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5500 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), false, true, true, (yyvsp[0].integer))) {return (1);}
+                               }
+#line 7064 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 95:
-#line 5253 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P1(_sp_load_sv_to_wo_action, (yyvsp[0].string))}
-#line 6759 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5503 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, true, false, 0)) {return (1);}
+                               }
+#line 7071 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 96:
-#line 5257 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P1(_sp_add_sv_to_wo_action, (yyvsp[0].string))}
-#line 6765 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5506 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), true, true, true, (yyvsp[0].integer))) {return (1);}
+                               }
+#line 7078 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 97:
-#line 5261 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_modify_wo_by_wr_action(_sp_assembler_context_p, false, (yyvsp[0].integer))) {return (1);}}
-#line 6771 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5509 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), false, true, false, 0)) {return (1);}
+                                free (yyvsp[0].string);
+                               }
+#line 7086 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 98:
-#line 5263 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_modify_wo_by_wr_action(_sp_assembler_context_p, true, (yyvsp[0].integer))) {return (1);}}
-#line 6777 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5513 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), false, true, true, (yyvsp[0].integer))) {return (1);}
+                                free (yyvsp[-2].string);
+                               }
+#line 7094 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 99:
-#line 5267 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_zero_wr_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
-#line 6783 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5517 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[0].string), true, true, false, 0)) {return (1);}
+                                free (yyvsp[0].string);
+                               }
+#line 7102 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 100:
-#line 5271 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_ones_comp_wr1_to_wr0_action)}
-#line 6789 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5521 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_action(_sp_assembler_context_p, (yyvsp[-2].string), true, true, true, (yyvsp[0].integer))) {return (1);}
+                                free (yyvsp[-2].string);
+                               }
+#line 7110 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 101:
-#line 5275 "sp_assembler.y" /* yacc.c:1646  */
-    {_SP_PROC_TOK_P0(_sp_return_sub_action)}
-#line 6795 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5525 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_if_wr0_wr1_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-4].string);
+                               }
+#line 7118 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 102:
-#line 5279 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_AND;}
-#line 6801 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5529 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case1dj_action(_sp_assembler_context_p, (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 7126 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 103:
-#line 5281 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_AND;}
-#line 6807 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5534 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case2dc_action(_sp_assembler_context_p, (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7134 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 104:
-#line 5283 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_OR;}
-#line 6813 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5539 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case2dj_action(_sp_assembler_context_p, (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 7142 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 105:
-#line 5285 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_OR;}
-#line 6819 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5544 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case3dc_action(_sp_assembler_context_p, (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7150 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 106:
-#line 5287 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_XOR;}
-#line 6825 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5549 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case3dj_action(_sp_assembler_context_p, (yyvsp[-10].string), (yyvsp[-7].string), (yyvsp[-4].string), (yyvsp[0].string), (yyvsp[-11].integer), (yyvsp[-8].integer), (yyvsp[-5].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-10].string); free (yyvsp[-7].string); free (yyvsp[-4].string); free (yyvsp[0].string);
+                               }
+#line 7158 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 107:
-#line 5291 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_EQUAL;}
-#line 6831 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5554 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_jmp_label_case4dc_action(_sp_assembler_context_p, (yyvsp[-9].string), (yyvsp[-6].string), (yyvsp[-3].string), (yyvsp[0].string), (yyvsp[-10].integer), (yyvsp[-7].integer), (yyvsp[-4].integer), (yyvsp[-1].integer), true)) {return (1);}
+                                free (yyvsp[-9].string); free (yyvsp[-6].string); free (yyvsp[-3].string); free (yyvsp[0].string);
+                               }
+#line 7166 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 108:
-#line 5293 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_NOT_EQUAL;}
-#line 6837 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5560 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_nop_action)}
+#line 7172 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 109:
-#line 5295 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_LESS_THAN;}
-#line 6843 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5564 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_advance_hb_by_wo_action)}
+#line 7178 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 110:
-#line 5297 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_GREATER_THAN;}
-#line 6849 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5568 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = 0;}
+#line 7184 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 5299 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_LESS_THAN_EQUAL;}
-#line 6855 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5570 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = 1;}
+#line 7190 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 112:
-#line 5301 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_GREATER_THAN_EQUAL;}
-#line 6861 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5574 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_result_array_range_action(_sp_assembler_context_p, (yyvsp[-3].integer), (yyvsp[-1].integer), false)) {return (1);}}
+#line 7196 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 113:
-#line 5305 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_PLUS;}
-#line 6867 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5576 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_result_array_range_action(_sp_assembler_context_p, (yyvsp[-1].integer), (yyvsp[-1].integer), false)) {return (1);}}
+#line 7202 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 114:
-#line 5307 "sp_assembler.y" /* yacc.c:1646  */
-    {(yyval.integer) = _SP_OPERATOR_MINUS;}
-#line 6873 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5580 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = (yyvsp[0].string);}
+#line 7208 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 115:
-#line 5311 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_bitwise_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer))) {return (1);}}
-#line 6879 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5582 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.string) = (yyvsp[0].string);}
+#line 7214 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 116:
-#line 5315 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_bitwise_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].integer), (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
-#line 6885 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5586 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_ra_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), true)) {return (1);}}
+#line 7220 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 117:
-#line 5319 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_addsub_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 0, (yyvsp[-1].integer))) {return (1);}}
-#line 6891 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5588 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_ra_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), false)) {return (1);}}
+#line 7226 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 118:
-#line 5321 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_addsub_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 1, (yyvsp[-1].integer))) {return (1);}}
-#line 6897 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5592 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_store_wr_to_ra_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
+#line 7232 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 119:
-#line 5325 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_addsub_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 0, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}}
-#line 6903 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5596 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P1(_sp_store_iv_to_ra_action, (yyvsp[0].string))}
+#line 7238 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 120:
-#line 5327 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_addsub_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 1, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}}
-#line 6909 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5600 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P1(_sp_load_sv_to_wo_action, (yyvsp[0].string))}
+#line 7244 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 121:
-#line 5331 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_bitwise_shift_left_wr_by_sv_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
-#line 6915 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5604 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P1(_sp_add_sv_to_wo_action, (yyvsp[0].string))}
+#line 7250 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 122:
-#line 5335 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_bitwise_shift_right_wr_by_sv_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
-#line 6921 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5608 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_modify_wo_by_wr_action(_sp_assembler_context_p, false, (yyvsp[0].integer))) {return (1);}}
+#line 7256 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 123:
-#line 5339 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].string), (yyvsp[0].integer), true)) {return (1);} free (yyvsp[-2].string);}
-#line 6927 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5610 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_modify_wo_by_wr_action(_sp_assembler_context_p, true, (yyvsp[0].integer))) {return (1);}}
+#line 7262 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 124:
-#line 5341 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string), 0, true)) {return (1);} free (yyvsp[0].string);}
-#line 6933 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5614 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_zero_wr_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
+#line 7268 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 125:
-#line 5343 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].string), (yyvsp[0].integer), false)) {return (1);} free (yyvsp[-2].string);}
-#line 6939 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5618 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_ones_comp_wr1_to_wr0_action)}
+#line 7274 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 126:
-#line 5345 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string), 0, false)) {return (1);} free (yyvsp[0].string);}
-#line 6945 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5622 "sp_assembler.y" /* yacc.c:1646  */
+    {_SP_PROC_TOK_P0(_sp_return_sub_action)}
+#line 7280 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 127:
-#line 5349 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), true)) {return (1);}}
-#line 6951 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5626 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_clr_faf_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
+#line 7286 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 128:
-#line 5351 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer), (yyvsp[-1].integer), true)) {return (1);}}
-#line 6957 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5628 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_set_faf_action(_sp_assembler_context_p, (yyvsp[0].integer))) {return (1);}}
+#line 7292 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 129:
-#line 5353 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), false)) {return (1);}}
-#line 6963 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5632 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_AND;}
+#line 7298 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 130:
-#line 5355 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer), (yyvsp[-1].integer), false)) {return (1);}}
-#line 6969 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5634 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_AND;}
+#line 7304 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 131:
-#line 5359 "sp_assembler.y" /* yacc.c:1646  */
-    {if (!_sp_load_bits_fw_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), true)) {return (1);}}
-#line 6975 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 5636 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_OR;}
+#line 7310 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
   case 132:
-#line 5361 "sp_assembler.y" /* yacc.c:1646  */
+#line 5638 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_OR;}
+#line 7316 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 133:
+#line 5640 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_XOR;}
+#line 7322 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 134:
+#line 5644 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_EQUAL;}
+#line 7328 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 135:
+#line 5646 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_NOT_EQUAL;}
+#line 7334 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 136:
+#line 5648 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_LESS_THAN;}
+#line 7340 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 137:
+#line 5650 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_GREATER_THAN;}
+#line 7346 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 138:
+#line 5652 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_LESS_THAN_EQUAL;}
+#line 7352 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 139:
+#line 5654 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_GREATER_THAN_EQUAL;}
+#line 7358 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 140:
+#line 5658 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_PLUS;}
+#line 7364 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 141:
+#line 5660 "sp_assembler.y" /* yacc.c:1646  */
+    {(yyval.integer) = _SP_OPERATOR_MINUS;}
+#line 7370 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 142:
+#line 5664 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_bitwise_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer))) {return (1);}}
+#line 7376 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 143:
+#line 5668 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_bitwise_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].integer), (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
+#line 7382 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 144:
+#line 5672 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_addsub_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 0, (yyvsp[-1].integer))) {return (1);}}
+#line 7388 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 145:
+#line 5674 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_addsub_wr_wr_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 1, (yyvsp[-1].integer))) {return (1);}}
+#line 7394 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 146:
+#line 5678 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_addsub_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 0, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}}
+#line 7400 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 147:
+#line 5680 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_addsub_wr_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), 1, (yyvsp[-1].integer), (yyvsp[0].string))) {return (1);}}
+#line 7406 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 148:
+#line 5684 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_bitwise_shift_left_wr_by_sv_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
+#line 7412 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 149:
+#line 5688 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_bitwise_shift_right_wr_by_sv_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string))) {return (1);} free (yyvsp[0].string);}
+#line 7418 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 150:
+#line 5692 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].string), (yyvsp[0].integer), true)) {return (1);} free (yyvsp[-2].string);}
+#line 7424 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 151:
+#line 5694 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string), 0, true)) {return (1);} free (yyvsp[0].string);}
+#line 7430 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 152:
+#line 5696 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-2].string), (yyvsp[0].integer), false)) {return (1);} free (yyvsp[-2].string);}
+#line 7436 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 153:
+#line 5698 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bits_iv_to_wr_action(_sp_assembler_context_p, (yyvsp[-2].integer), (yyvsp[0].string), 0, false)) {return (1);} free (yyvsp[0].string);}
+#line 7442 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 154:
+#line 5702 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), true)) {return (1);}}
+#line 7448 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 155:
+#line 5704 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer), (yyvsp[-1].integer), true)) {return (1);}}
+#line 7454 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 156:
+#line 5706 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), false)) {return (1);}}
+#line 7460 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 157:
+#line 5708 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bytes_pa_to_wr_action(_sp_assembler_context_p, (yyvsp[-4].integer), (yyvsp[-1].integer), (yyvsp[-1].integer), false)) {return (1);}}
+#line 7466 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 158:
+#line 5712 "sp_assembler.y" /* yacc.c:1646  */
+    {if (!_sp_load_bits_fw_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), true)) {return (1);}}
+#line 7472 "sp_assembler.tab.c" /* yacc.c:1646  */
+    break;
+
+  case 159:
+#line 5714 "sp_assembler.y" /* yacc.c:1646  */
     {if (!_sp_load_bits_fw_to_wr_action(_sp_assembler_context_p, (yyvsp[-6].integer), (yyvsp[-3].integer), (yyvsp[-1].integer), false)) {return (1);}}
-#line 6981 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 7478 "sp_assembler.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 6985 "sp_assembler.tab.c" /* yacc.c:1646  */
+#line 7482 "sp_assembler.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

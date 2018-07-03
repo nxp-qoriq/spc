@@ -76,9 +76,11 @@
 #define _SP_INSTR_CODE_SHIFT_LEFT_WR_BY_SV_STR     "0x0100"
 #define _SP_INSTR_CODE_SHIFT_RIGHT_WR_BY_SV_STR    "0x0180"
 #define _SP_INSTR_CODE_LOAD_BITS_IV_TO_WR_STR      "0x0200"
+#define _SP_INSTR_CODE_SET_CLR_FAF_STR      	   "0x0300"
 #define _SP_INSTR_CODE_LOAD_SV_TO_WO_STR           "0x0600"
 #define _SP_INSTR_CODE_ADD_SV_TO_WO_STR            "0x0700"
 #define _SP_INSTR_CODE_STORE_IV_TO_RA_STR          "0x0800"
+#define _SP_INSTR_CODE_JMP_FAF_STR            	   "0x0c00"
 #define _SP_INSTR_CODE_LOAD_BYTES_PA_TO_WR_STR     "0x1000"
 #define _SP_INSTR_CODE_JUMP_STR                    "0x1800"
 #define _SP_INSTR_CODE_STORE_WR_TO_RA_STR          "0x2800"
@@ -89,6 +91,8 @@
 /* For convenience further define the only two possible types of "JMP PROTOCOL" */
 #define _SP_INSTR_CODE_JMP_NXT_ETH_TYPE_STR        "0x0044"
 #define _SP_INSTR_CODE_JMP_NXT_IP_PROTO_STR        "0x0045"
+#define _SP_INSTR_CODE_JMP_NXT_TCPUDP_PORTS_STR    "0x0046"
+#define _SP_INSTR_CODE_JMP_NXT_INVALID_STR	   	   "0x0047"
 
 /* 
  * Instruction codes
@@ -113,9 +117,11 @@
 #define _SP_INSTR_CODE_SHIFT_LEFT_WR_BY_SV  0x0100
 #define _SP_INSTR_CODE_SHIFT_RIGHT_WR_BY_SV 0x0180
 #define _SP_INSTR_CODE_LOAD_BITS_IV_TO_WR   0x0200
+#define _SP_INSTR_CODE_SET_CLR_FAF        	0x0300
 #define _SP_INSTR_CODE_LOAD_SV_TO_WO        0x0600
 #define _SP_INSTR_CODE_ADD_SV_TO_WO         0x0700
 #define _SP_INSTR_CODE_STORE_IV_TO_RA       0x0800
+#define _SP_INSTR_CODE_JMP_FAF            	0x0c00
 #define _SP_INSTR_CODE_LOAD_BYTES_PA_TO_WR  0x1000
 #define _SP_INSTR_CODE_JUMP                 0x1800
 #define _SP_INSTR_CODE_STORE_WR_TO_RA       0x2800
@@ -126,11 +132,14 @@
 /* For convenience further define the only two possible types of "JMP PROTOCOL" */
 #define _SP_INSTR_CODE_JMP_NXT_ETH_TYPE     0x0044
 #define _SP_INSTR_CODE_JMP_NXT_IP_PROTO     0x0045
+#define _SP_INSTR_CODE_JMP_NXT_TCPUDP_PORTS 0x0046
+#define _SP_INSTR_CODE_JMP_NXT_INVALID		0x0047
 
 /*
  * Instruction modification values
  */
 #define _SP_INSTR_MOD_JMP_HXS               0x0400
+#define _SP_INSTR_MOD_JMP_FAF_HXS           0x0080
 
 /*
  * Operator values
@@ -154,6 +163,8 @@
 #define _SP_VLAN_HXS_LABEL          "VLAN_HXS"
 #define _SP_PPPOE_PPP_HXS_LABEL     "PPPOE_PPP_HXS"
 #define _SP_MPLS_HXS_LABEL          "MPLS_HXS"
+#define _SP_ARP_HXS_LABEL           "ARP_HXS"
+#define _SP_IP_HXS_LABEL            "IP_HXS"
 #define _SP_IPV4_HXS_LABEL          "IPV4_HXS"
 #define _SP_IPV6_HXS_LABEL          "IPV6_HXS"
 #define _SP_GRE_HXS_LABEL           "GRE_HXS"
@@ -164,7 +175,11 @@
 #define _SP_IPSEC_HXS_LABEL         "IPSEC_HXS"
 #define _SP_SCTP_HXS_LABEL          "SCTP_HXS"
 #define _SP_DCCP_HXS_LABEL          "DCCP_HXS"
-#define _SP_OTH_L4_HXS_LABEL        "OTH_L4"
+#define _SP_OTH_L4_HXS_LABEL        "OTH_L4_HXS"
+#define _SP_GTP_HXS_LABEL           "GTP_HXS"
+#define _SP_ESP_HXS_LABEL           "ESP_HXS"
+#define _SP_OTH_L5_HXS_LABEL		"OTH_L5_HXS"
+#define _SP_FINAL_SHELL_HXS_LABEL	"FINAL_SHELL"
 #define _SP_RETURN_HXS_LABEL        "RETURN_HXS"
 #define _SP_END_PARSE_LABEL         "END_PARSE"
 
@@ -173,21 +188,130 @@
 #define _SP_VLAN_HXS          0x002
 #define _SP_PPPOE_PPP_HXS     0x003
 #define _SP_MPLS_HXS          0x004
-#define _SP_IPV4_HXS          0x005
-#define _SP_IPV6_HXS          0x006
-#define _SP_GRE_HXS           0x007
-#define _SP_MINENCAP_HXS      0x008
-#define _SP_OTH_L3_HXS        0x009
-#define _SP_TCP_HXS           0x00a
-#define _SP_UDP_HXS           0x00b
-#define _SP_IPSEC_HXS         0x00c
-#define _SP_SCTP_HXS          0x00d
-#define _SP_DCCP_HXS          0x00e
-#define _SP_OTH_L4_HXS        0x00f
-#define _SP_RETURN_HXS        0x3fe
-#define _SP_END_PARSE         0x3ff
+#define _SP_ARP_HXS			  0x005
+#define _SP_IP_HXS			  0x006
+#define _SP_IPV4_HXS          0x007
+#define _SP_IPV6_HXS          0x008
+#define _SP_GRE_HXS           0x009
+#define _SP_MINENCAP_HXS      0x00a
+#define _SP_OTH_L3_HXS        0x00b
+#define _SP_TCP_HXS           0x00c
+#define _SP_UDP_HXS           0x00d
+#define _SP_IPSEC_HXS         0x00e
+#define _SP_SCTP_HXS          0x00f
+#define _SP_DCCP_HXS          0x010
+#define _SP_OTH_L4_HXS        0x011
+#define _SP_GTP_HXS			  0x012
+#define _SP_ESP_HXS			  0x013
+#define _SP_OTH_L5_HXS		  0x01e
+#define _SP_FINAL_SHELL_HXS	  0x01f
+#define _SP_RETURN_HXS        0x7fe
+#define _SP_END_PARSE         0x7ff
 
 #define _SP_MAX_INSTR_WORDS 992
+
+// Frame Attribute Flag (FAF) codes
+#define _FAF_User_Defined_0                         0
+#define _FAF_User_Defined_1                         1
+#define _FAF_User_Defined_2                         2
+#define _FAF_User_Defined_3                         3
+#define _FAF_User_Defined_4                         4
+#define _FAF_User_Defined_5                         5
+#define _FAF_User_Defined_6                         6
+#define _FAF_User_Defined_7                         7
+#define _FAF_Shim_Shell_Soft_Parsing_Error          8
+#define _FAF_Parsing_Error                          9
+#define _FAF_Ethernet_MAC_Present                   10
+#define _FAF_Ethernet_Unicast                       11
+#define _FAF_Ethernet_Multicast                     12
+#define _FAF_Ethernet_Broadcast                     13
+#define _FAF_BPDU_Frame                             14
+#define _FAF_FCoE_Detected                          15
+#define _FAF_FIP_Detected                           16
+#define _FAF_Ethernet_Parsing_Error                 17
+#define _FAF_LLC_SNAP_Present                       18
+#define _FAF_Unknown_LLC_OUI                        19
+#define _FAF_LLC_SNAP_Error                         20
+#define _FAF_VLAN_1_Present                         21
+#define _FAF_VLAN_n_Present                         22
+#define _FAF_CFI                                    23
+#define _FAF_VLAN_Parsing_Error                     24
+#define _FAF_PPPoE_PPP_Present                      25
+#define _FAF_PPPoE_PPP_Parsing_Error                26
+#define _FAF_MPLS_1_Present                         27
+#define _FAF_MPLS_n_Present                         28
+#define _FAF_MPLS_Parsing_Error                     29
+#define _FAF_ARP_Frame_Present                      30
+#define _FAF_ARP_Parsing_Error                      31
+#define _FAF_L2_Unknown_Protocol                    32
+#define _FAF_L2_Soft_Parsing_Error                  33
+#define _FAF_IPv4_1_Present                         34
+#define _FAF_IPv4_1_Unicast                         35
+#define _FAF_IPv4_1_Multicast                       36
+#define _FAF_IPv4_1_Broadcast                       37
+#define _FAF_IPv4_n_Present                         38
+#define _FAF_IPv4_n_Unicast                         39
+#define _FAF_IPv4_n_Multicast                       40
+#define _FAF_IPv4_n_Broadcast                       41
+#define _FAF_IPv6_1_Present                         42
+#define _FAF_IPv6_1_Unicast                         43
+#define _FAF_IPv6_1_Multicast                       44
+#define _FAF_IPv6_n_Present                         45
+#define _FAF_IPv6_n_Unicast                         46
+#define _FAF_IPv6_n_Multicast                       47
+#define _FAF_IP_1_Option_Present                    48
+#define _FAF_IP_1_Unknown_Protocol                  49
+#define _FAF_IP_1_Packet_Is_A_Fragment              50
+#define _FAF_IP_1_Packet_Is_An_Initial_Fragment     51
+#define _FAF_IP_1_Parsing_Error                     52
+#define _FAF_IP_n_Option_Present                    53
+#define _FAF_IP_n_Unknown_Protocol                  54
+#define _FAF_IP_n_Packet_Is_A_Fragment              55
+#define _FAF_IP_n_Packet_Is_An_Initial_Fragment     56
+#define _FAF_ICMP_Detected                          57
+#define _FAF_IGMP_Detected                          58
+#define _FAF_ICMPv6_Detected                        59
+#define _FAF_UDP_Light_Detected                     60
+#define _FAF_IP_n_Parsing_Error                     61
+#define _FAF_Min_Encap_Present                      62
+#define _FAF_Min_Encap_S_flag_Set                   63
+#define _FAF_Min_Encap_Parsing_Error                64
+#define _FAF_GRE_Present                            65
+#define _FAF_GRE_R_Bit_Set                          66
+#define _FAF_GRE_Parsing_Error                      67
+#define _FAF_L3_Unknown_Protocol                    68
+#define _FAF_L3_Soft_Parsing_Error                  69
+#define _FAF_UDP_Present                            70
+#define _FAF_UDP_Parsing_Error                      71
+#define _FAF_TCP_Present                            72
+#define _FAF_TCP_Options_Present                    73
+#define _FAF_TCP_Control_Bits_6_11_Set              74
+#define _FAF_TCP_Control_Bits_3_5_Set               75
+#define _FAF_TCP_Parsing_Error                      76
+#define _FAF_IPSec_Present                          77
+#define _FAF_IPSec_ESP_Found                        78
+#define _FAF_IPSec_AH_Found                         79
+#define _FAF_IPSec_Parsing_Error                    80
+#define _FAF_SCTP_Present                           81
+#define _FAF_SCTP_Parsing_Error                     82
+#define _FAF_DCCP_Present                           83
+#define _FAF_DCCP_Parsing_Error                     84
+#define _FAF_L4_Unknown_Protocol                    85
+#define _FAF_L4_Soft_Parsing_Error                  86
+#define _FAF_GTP_Present                            87
+#define _FAF_GTP_Parsing_Error                      88
+#define _FAF_ESP_Present                            89
+#define _FAF_ESP_Parsing_Error                      90
+#define _FAF_iSCSI_Detected                         91
+#define _FAF_Capwap_Control_Detected                92
+#define _FAF_Capwap_Data_Detected                   93
+#define _FAF_L5_Soft_Parsing_Error                  94
+#define _FAF_IPv6_Route_Hdr1_Present                95
+#define _FAF_IPv6_Route_Hdr2_Present                96
+#define _FAF_GTP_Primed_Detected					97
+#define _FAF_VLAN_Prio_Detected						98
+#define _FAF_PTP_Detected							99
+#define _FAF_Reserved                               100 // - 111
 
 /* ------------------------------------------------------------------------
  * Assembler parser context object.
@@ -246,9 +370,11 @@ typedef enum
    _sp_assembler_shift_left_wr_by_sv_e,
    _sp_assembler_shift_right_wr_by_sv_e,
    _sp_assembler_load_bits_iv_to_wr_e,
+   _sp_assembler_set_clr_faf_e,
    _sp_assembler_load_sv_to_wo_e,
    _sp_assembler_add_sv_to_wo_e,
    _sp_assembler_store_iv_to_ra_e,
+   _sp_assembler_jmp_faf_e,
    _sp_assembler_load_bytes_pa_to_wr_e,
    _sp_assembler_jump_e,
    _sp_assembler_store_wr_to_ra_e,
@@ -258,7 +384,8 @@ typedef enum
    _sp_assembler_addsub_wr_wr_to_wr_e,
    _sp_assembler_addsub_wr_iv_to_wr_e,
    _sp_assembler_jmp_nxt_eth_type_e,
-   _sp_assembler_jmp_nxt_ip_proto_e
+   _sp_assembler_jmp_nxt_ip_proto_e,
+   _sp_assembler_jmp_nxt_tcpudp_ports_e
 
 } _sp_assembler_instruction_type_t;
 

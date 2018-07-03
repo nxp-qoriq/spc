@@ -1419,81 +1419,105 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
       {
          case _sp_assembler_jump_e:
 
-            /* Check for special hardware labels. */
-            if (strcmp(instr_p->jump_label1_p, _SP_ETH_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_ETH_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_IPV4_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_IPV4_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_IPV6_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_IPV6_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L3_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_OTH_L3_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_TCP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_TCP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_UDP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_UDP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L4_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_OTH_L4_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_RETURN_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_RETURN_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_END_PARSE_LABEL) == 0)
-            {
-               program_counter = _SP_END_PARSE;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_LLC_SNAP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_LLC_SNAP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_VLAN_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_VLAN_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_PPPOE_PPP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_PPPOE_PPP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_MPLS_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_MPLS_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_GRE_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_GRE_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_MINENCAP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_MINENCAP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_IPSEC_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_IPSEC_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_SCTP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_SCTP_HXS;
-            }
-            else if (strcmp(instr_p->jump_label1_p, _SP_DCCP_HXS_LABEL) == 0)
-            {
-               program_counter = _SP_DCCP_HXS;
-            }
-            else
-            {
+             /* Check for special hardware labels. */
+             if (strcmp(instr_p->jump_label1_p, _SP_ETH_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_ETH_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_LLC_SNAP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_LLC_SNAP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_VLAN_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_VLAN_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_PPPOE_PPP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_PPPOE_PPP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_MPLS_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_MPLS_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_ARP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_ARP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_IP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_IP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_IPV4_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_IPV4_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_IPV6_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_IPV6_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_GRE_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_GRE_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_MINENCAP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_MINENCAP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L3_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_OTH_L3_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_TCP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_TCP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_UDP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_UDP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_IPSEC_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_IPSEC_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_SCTP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_SCTP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_DCCP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_DCCP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L4_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_OTH_L4_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_GTP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_GTP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_ESP_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_ESP_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L5_HXS_LABEL) == 0)
+             {
+ 				program_counter = _SP_OTH_L5_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_FINAL_SHELL_HXS_LABEL) == 0)
+             {
+ 				program_counter = _SP_FINAL_SHELL_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_RETURN_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_RETURN_HXS;
+             }
+             else if (strcmp(instr_p->jump_label1_p, _SP_END_PARSE_LABEL) == 0)
+             {
+                program_counter = _SP_END_PARSE;
+             }
+             else
+             {
                /* Check the label exists */
                program_counter = _sp_pc_from_label(ctx_p,
                                                      instr_p->jump_label1_p);
