@@ -43,6 +43,19 @@
 
 #define EXTRA_CHARS "(() >> 8) & 0xff, () & 0xff"
 
+#define __SP_UPDATE_DEST_WITH_REL_OR_GOSUB \
+   if (program_counter > _SP_MAX_ABS_PROG_CTR) \
+   { \
+      program_counter -= instr_p->program_counter; \
+      program_counter = program_counter | _SP_RELATIVE_FLAG; \
+      rel_jump = true; \
+   } \
+   if (instr_p->gosub) \
+   { \
+      program_counter = program_counter | _SP_GOSUB_FLAG; \
+   } \
+   program_counter = program_counter & _SP_PROG_COUNTER_MASK;
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * Static function definitions
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
@@ -186,7 +199,7 @@ static void _sp_display_instruction(_sp_assembler_instruction_t *instr_p)
          break;
 
       case _sp_assembler_jump_e:
-         pc = instr_p->hw_words[0] & 0x3FF;
+         pc = instr_p->hw_words[0] & _SP_PROG_COUNTER_MASK;
 
          if (instr_p->hxs)
          {
@@ -905,7 +918,7 @@ _sp_assembler_parser_context_t *_sp_new_parse_context(void)
    dll_list_init(&(object_p->instruction_list));
 
    object_p->assemble_failed       = false;
-   object_p->line_number           = 1;
+   object_p->line_number           = 0;
 
    return (object_p);
 }
@@ -1205,6 +1218,26 @@ void _sp_assembler_yyerror (_sp_assembler_parser_context_t *ctx_p,
                ctx_p->current_file_name_p,
                ctx_p->line_number);
    }
+   else
+   {
+      file_info_len = strlen("Line ")                    +
+                      (ctx_p->line_number / 10) + 1      + /* Num chars for line num */
+                      1;
+
+      file_info_p = (char *)calloc(1, file_info_len);
+
+      if (file_info_p == NULL)
+      {
+         /* Indicate that failure occured while composing message */
+         ctx_p->assemble_msg_composition_error = sp_malloc_failure_e;
+         return;
+      }
+
+      snprintf(file_info_p,
+               file_info_len,
+               "Line %d",
+               ctx_p->line_number);
+   }
 
    /* If a string was passed in, append it with file info to the assembler
     * message. 
@@ -1215,6 +1248,8 @@ void _sp_assembler_yyerror (_sp_assembler_parser_context_t *ctx_p,
                     file_info_len    +
                     1                +    /* Space after file info */
                     str_len          +
+                    1                                    + /* \n after string */
+                    strlen(ctx_p->current_source_line_p) +
                     1;                    /* Terminating NULL */
 
       message_p = (char *)calloc(1, message_len);
@@ -1234,10 +1269,11 @@ void _sp_assembler_yyerror (_sp_assembler_parser_context_t *ctx_p,
 
       snprintf(message_p,
                message_len,
-               "%s%s %s",
+               "%s%s %s\n%s",
                header_p,
                file_info_p,
-               str_p);
+               str_p,
+               ctx_p->current_source_line_p);
 
       result = _sp_compose_user_msg(ctx_p, message_p);
 
@@ -1366,6 +1402,7 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
    char                          *tmp_str_p;
    uint32_t                       len;
    char                           or_str_p[] = " | ";
+   bool                           rel_jump = false;
 
    node_p = dll_get_first(&(ctx_p->instruction_list));
 
@@ -1374,6 +1411,9 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
       instr_p = DLL_STRUCT_FROM_NODE_GET(node_p,
                                          _sp_assembler_instruction_t,
                                          dll_node);
+
+      // Init each time
+      rel_jump = false;
 
       switch (instr_p->type)
       {
@@ -1464,33 +1504,31 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                }
             }
 
-            tmp_str_p = instr_p->hw_words_str_p[0];
+            tmp_str_p = instr_p->hw_words_str_p[1];
             
-            len = strlen(tmp_str_p) +
-                  strlen(or_str_p)  +
+            len = //strlen(tmp_str_p) +
+                  //strlen(or_str_p)  +
                   6                 +  /* 0xNNNN */
                   1;
 
-            instr_p->hw_words_str_p[0] = (char *)calloc(len + 1, 1);
+            instr_p->hw_words_str_p[1] = (char *)calloc(len + 1, 1);
 
-            if (instr_p->hw_words_str_p[0] == NULL)
+            if (instr_p->hw_words_str_p[1] == NULL)
             {
                return(sp_malloc_failure_e);
             }
 
-            program_counter = program_counter & 0x3ff;
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
 
-            snprintf(instr_p->hw_words_str_p[0],
+            snprintf(instr_p->hw_words_str_p[1],
                      len,
-                     "%s%s0x%04x",
-                     tmp_str_p,
-                     or_str_p,
+                     "0x%04x",
                      program_counter);
 
             free (tmp_str_p);
 
             /* HW opcode */
-            instr_p->hw_words_p[0] = instr_p->hw_words_p[0] | program_counter;
+            instr_p->hw_words_p[1] = program_counter;
 
             break;
 
@@ -1505,6 +1543,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1514,8 +1554,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[1],
                      len,
@@ -1539,6 +1577,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1548,8 +1588,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[1],
                      len,
@@ -1568,6 +1606,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1577,8 +1617,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[2],
                      len,
@@ -1602,6 +1640,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1611,8 +1651,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[1],
                      len,
@@ -1631,6 +1669,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1640,8 +1680,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[2],
                      len,
@@ -1660,6 +1698,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1669,8 +1709,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[3],
                      len,
@@ -1694,6 +1732,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1703,8 +1743,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[1],
                      len,
@@ -1723,6 +1761,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1732,8 +1772,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[2],
                      len,
@@ -1752,6 +1790,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1761,8 +1801,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[3],
                      len,
@@ -1781,6 +1819,8 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
                return(sp_invalid_label_e);
             }
 
+            __SP_UPDATE_DEST_WITH_REL_OR_GOSUB;
+
             len = 6 + /* 0xNNNN */
                   1;
 
@@ -1790,8 +1830,6 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
             {
                return(sp_malloc_failure_e);
             }
-
-            program_counter = program_counter & 0x3ff;
 
             snprintf(instr_p->hw_words_str_p[4],
                      len,

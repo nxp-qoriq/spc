@@ -123,6 +123,14 @@ void CStatement::dumpStatement (std::ofstream &outFile, uint8_t spaces) const
             expr->dumpExpression(outFile, spaces+2);
             outFile << std::endl;
             break;
+		case ST_GOSUB:
+			label.isProto? labelName = label.getProtocolOutputName() :
+						   labelName = label.name;
+			outFile << std::string(spaces, ' ') << "GOSUB " << labelName << std::endl;
+			break;
+		case ST_RETSUB:
+			outFile << std::string(spaces, ' ') << "RETSUB" << std::endl;
+			break;
     }
     /*if (section.when != "")
         outFile << "  (when) - " << section.when;

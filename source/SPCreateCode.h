@@ -70,10 +70,13 @@ typedef enum Opcode {
     CASE3_DJ_WR_TO_WR,   // [OT_REG=WR0],   OT_HXS,         OT_LABEL,   OT_HXS,     OT_LABEL, OT_HXS, OT_LABEL, OT_HXS, OT_LABEL
     CASE4_DC_WR_TO_WR,   // [OT_REG=WR0],   OT_HXS,         OT_LABEL,   OT_HXS,     OT_LABEL, OT_HXS, OT_LABEL, OT_HXS, OT_LABEL
     COMPARE_WORKING_REGS,// OT_LABEL,       [OT_REG=WR0],   OT_CONDOP,  [OT_REG=WR1]
+	GOSUB_COMPARE_WK_REGS,
     LABEL,               // OT_LABEL
     JMP,                 // OT_HXS,         OT_LABEL
     JMP_PROTOCOL_ETH,    // [OT_HXS=1]
     JMP_PROTOCOL_IP,     // [OT_HXS=1]
+	GOSUB,
+	RETURN_SUB,
     STORE_IV_TO_RA,      // OT_OBJ,         OT_VAL
     STORE_WR_TO_RA,      // OT_OBJ,         OT_REG
     LOAD_BYTES_RA_TO_WR, // OT_REG,         OT_SHIFT,       OT_OBJ
@@ -283,6 +286,8 @@ class CCode
     void processIf         (CENode* expression,   CLabel label, CProtocolCode& code);
     void processInline     (std::string data,     CProtocolCode& code);
     void processJump       (CStatement statement, CProtocolCode& code);
+	void processGosub	   (CStatement statement, CProtocolCode& code);
+	void processRetsub	   (CStatement statement, CProtocolCode& code);
     void processSwitch     (CENode* expression,   CSwitchTable* switchTable, CProtocolCode& code);
     void processWROperation(CENode* expression,   CProtocolCode& code);
     void processChecksum   (CENode* expression,   CProtocolCode& code);
@@ -339,10 +344,13 @@ class CCode
     by unallowing using the wrong operands in specific instructions*/
   public:
     static CInstruction createCOMPARE_WORKING_REGS  (CLabelOperand* opA, CCondOperand*  opB);
+	static CInstruction createGOSUB_COMPARE_WK_REGS (CLabelOperand* opA, CCondOperand*  opB);
     static CInstruction createLABEL                 (CLabelOperand* opA);
     static CInstruction createJMP                   (CHxsOperand*   opA, CLabelOperand* opB);
     static CInstruction createJMP_PROTOCOL_ETH      ();
     static CInstruction createJMP_PROTOCOL_IP       ();
+	static CInstruction createGOSUB                 (CLabelOperand* opA);
+	static CInstruction createRETURN_SUB			();
     static CInstruction createSTORE_IV_TO_RA        (CObjOperand*   opA, CValueOperand* opB);
     static CInstruction createSTORE_WR_TO_RA        (CObjOperand*   opA, CRegOperand*   opB);
     static CInstruction createLOAD_BYTES_RA_TO_WR   (CRegOperand*   opA, CShiftOperand* opB,    CObjOperand*    opC);

@@ -63,12 +63,13 @@ typedef std::map< std::string, unsigned int >::iterator CConstantsIter;
 
 
 typedef enum ExecuteInstructionType {
-    IF,
-    LOOP,
-    ACTION,
-    ASSIGN,
-    INLINE,
-    SWITCH
+	IT_IF,
+	IT_LOOP,
+	IT_ACTION,
+	IT_ASSIGN,
+	IT_INLINE,
+	IT_SWITCH,
+	IT_GOSUB,
 } ExecuteInstructionType;
 
 typedef enum ExecuteSectionType {
@@ -277,6 +278,20 @@ class CExecuteSwitch : public CConfirmCustomExtractor
     virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const;
 };
 
+class CExecuteGosub : public CConfirmCustomExtractor
+{
+public:
+
+	std::string      name;
+	int              line;
+
+	CExecuteGosub  () :                  line(NO_LINE) {}
+	CExecuteGosub  (std::string name1) : name(name1), line(NO_LINE) {}
+	void dumpGosub (std::ofstream &outFile, uint8_t spaces);
+
+	virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {};
+};
+
 class CExecuteExpression : public CConfirmCustomExtractor
 {
   public:
@@ -287,6 +302,7 @@ class CExecuteExpression : public CConfirmCustomExtractor
     CExecuteLoop           loopInstr;
     CExecuteInline         inlineInstr;
     CExecuteSwitch         switchInstr;
+	CExecuteGosub		   gosubInstr;
 
     CExecuteExpression() {}
     CExecuteExpression(ExecuteInstructionType type1): type(type1) {}

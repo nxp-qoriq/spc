@@ -190,6 +190,14 @@ void CInstruction::prepareAsm (std::string &asmOutput)
             checkError(1, OT_HXS);
             asmOutput += "JMP NXT_IP_PROTO";
             break;
+		case GOSUB:
+			checkError(1, OT_LABEL);
+			asmOutput += "GOSUB " + operands[0]->getOperandName();
+			break;
+		case RETURN_SUB:
+			checkError(0);
+			asmOutput += "RETURN_SUB";
+			break;
         case ADVANCE_HB_BY_WO:
             checkError(1, OT_REG);
             asmOutput += "HB += " + operands[0]->getOperandName();
@@ -217,6 +225,13 @@ void CInstruction::prepareAsm (std::string &asmOutput)
                                 + operands[2]->getOperandName() + " "
                                 + operands[3]->getOperandName();
             break;
+		case GOSUB_COMPARE_WK_REGS:
+			checkError(4, OT_LABEL, OT_REG, OT_CONDOP, OT_REG);
+			asmOutput += "GOSUB " + operands[0]->getOperandName() + " IF "
+				+ operands[1]->getOperandName() + " "
+				+ operands[2]->getOperandName() + " "
+				+ operands[3]->getOperandName();
+			break;
         case ADD_WO_BY_WR:
             checkError(2, OT_REG, OT_REG);
             asmOutput += operands[0]->getOperandName() + " += " +

@@ -100,6 +100,12 @@ void CCode::processStatement (CStatement statement, CProtocolCode& code)
         case ST_SECTIONEND:
             processEndSection(statement, code);
             break;
+		case ST_GOSUB:
+			processGosub(statement, code);
+			break;
+		case ST_RETSUB:
+			processRetsub(statement, code);
+			break;
     }
     chksumStored = 0;
 }
@@ -154,6 +160,18 @@ void CCode::processJump (CStatement statement, CProtocolCode& code)
         addInstr(createJMP_PROTOCOL_IP(), code);
     else
         addInstr(createJMP(newHxsOp(jmpHxs), newLabelOp(label)), code);
+}
+
+void CCode::processGosub (CStatement statement, CProtocolCode& code)
+{
+	CLabel label = statement.label;
+
+	addInstr(createGOSUB(newLabelOp(label)), code);
+}
+
+void CCode::processRetsub (CStatement statement, CProtocolCode& code)
+{
+	addInstr(createRETURN_SUB(), code);
 }
 
 void CCode::processIf (CENode* expression, CLabel label, CProtocolCode& code)
@@ -742,6 +760,14 @@ CInstruction CCode::createCOMPARE_WORKING_REGS  (CLabelOperand* opA, CCondOperan
     return instr;
 }
 
+CInstruction CCode::createGOSUB_COMPARE_WK_REGS  (CLabelOperand* opA, CCondOperand*  opB)
+{
+	CInstruction instr(GOSUB_COMPARE_WK_REGS, opA, newRegOp(R_WR0),
+											  opB, newRegOp(R_WR1));
+	instr.operands[1]->flags.used = 1;
+	instr.operands[3]->flags.used = 1;
+	return instr;
+}
 
 CInstruction CCode::createLABEL                 (CLabelOperand* opA)
     { return CInstruction(LABEL,                opA); }
@@ -751,6 +777,18 @@ CInstruction CCode::createJMP                   (CHxsOperand*   opA, CLabelOpera
     CInstruction instr(JMP, opA, opB);
     instr.operands[0]->flags.used = opA->hxsOp;
     return instr;
+}
+
+CInstruction CCode::createGOSUB                 (CLabelOperand* opA)
+{
+	CInstruction instr(GOSUB, opA);
+	instr.operands[0]->flags.used= 1;
+	return instr;
+}
+
+CInstruction CCode::createRETURN_SUB			()
+{
+	return CInstruction(RETURN_SUB);
 }
 
 CInstruction CCode::createJMP_PROTOCOL_ETH      ()
@@ -1113,8 +1151,11 @@ std::string CInstruction::getOpcodeName()
     opcodeNames[JMP]                    = "JMP";
     opcodeNames[JMP_PROTOCOL_ETH]       = "JMP_PROTOCOL_ETH";
     opcodeNames[JMP_PROTOCOL_IP]        = "JMP_PROTOCOL_IP";
+	opcodeNames[GOSUB]                  = "GOSUB";
+	opcodeNames[RETURN_SUB]             = "RETURN_SUB";
     opcodeNames[ONES_COMP_WR1_TO_WR0]   = "ONES_COMP_WR1_TO_WR0";
     opcodeNames[COMPARE_WORKING_REGS]   = "COMPARE_WORKING_REGS";
+	opcodeNames[GOSUB_COMPARE_WK_REGS]  = "GOSUB_COMPARE_WK_REGS";
     opcodeNames[ADVANCE_HB_BY_WO]       = "ADVANCE_HB_BY_WO";
     opcodeNames[LOAD_SV_TO_WO]          = "LOAD_SV_TO_WO";
     opcodeNames[ADD_SV_TO_WO]           = "ADD_SV_TO_WO";

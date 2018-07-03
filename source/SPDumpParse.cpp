@@ -64,18 +64,20 @@ void CExecuteSection::dumpSection(std::ofstream &outFile, uint8_t spaces)
 
     for (unsigned int i=0; i < executeExpressions.size(); i++)
     {
-        if (executeExpressions[i].type == ACTION)
+        if (executeExpressions[i].type == IT_ACTION)
             executeExpressions[i].actionInstr.dumpAction(outFile, spaces+2);
-        else if (executeExpressions[i].type == ASSIGN)
+        else if (executeExpressions[i].type == IT_ASSIGN)
             executeExpressions[i].assignInstr.dumpAssign(outFile, spaces+2);
-        else if (executeExpressions[i].type == IF)
+        else if (executeExpressions[i].type == IT_IF)
             executeExpressions[i].ifInstr.dumpIf        (outFile, spaces+2);
-        else if (executeExpressions[i].type == LOOP)
+        else if (executeExpressions[i].type == IT_LOOP)
             executeExpressions[i].loopInstr.dumpLoop    (outFile, spaces+2);
-        else if (executeExpressions[i].type == INLINE)
+        else if (executeExpressions[i].type == IT_INLINE)
             executeExpressions[i].inlineInstr.dumpInline(outFile, spaces+2);
-        else if (executeExpressions[i].type == SWITCH)
+        else if (executeExpressions[i].type == IT_SWITCH)
             executeExpressions[i].switchInstr.dumpSwitch(outFile, spaces+2);
+		else if (executeExpressions[i].type == IT_GOSUB)
+			executeExpressions[i].gosubInstr.dumpGosub(outFile, spaces+2);
     }
 }
 
@@ -142,3 +144,7 @@ void CExecuteInline::dumpInline (std::ofstream &outFile, uint8_t spaces)
     outFile << std::string(spaces+2, ' ') << data << std::endl;
 }
 
+void CExecuteGosub::dumpGosub (std::ofstream &outFile, uint8_t spaces)
+{
+	outFile << std::string(spaces, ' ') << "GOSUB " << name << std::endl;
+}

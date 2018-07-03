@@ -429,19 +429,19 @@ void
 CExecuteExpression::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     switch ( type ) {
-        case ACTION:
+        case IT_ACTION:
             actionInstr.getConfirmCustom( custom_confirms );
             break;
-        case ASSIGN:
+        case IT_ASSIGN:
             assignInstr.getConfirmCustom( custom_confirms );
             break;
-        case IF:
+        case IT_IF:
             ifInstr.getConfirmCustom( custom_confirms );
             break;
-        case INLINE:
+        case IT_INLINE:
             inlineInstr.getConfirmCustom( custom_confirms );
             break;
-        case SWITCH:
+        case IT_SWITCH:
             switchInstr.getConfirmCustom( custom_confirms );
             break;
     }

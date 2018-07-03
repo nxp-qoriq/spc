@@ -48,6 +48,11 @@
 #define _SP_DISPLAY_LINE_SIZE  92
 #define _SP_DISPLAY_DESCR_SIZE 52
 
+#define _SP_PROG_COUNTER_MASK 	0xffff
+#define _SP_GOSUB_FLAG 			0x8000
+#define _SP_RELATIVE_FLAG 		0x4000
+#define _SP_MAX_ABS_PROG_CTR 	0x7ff
+
 /* 
  * Instruction code strings
  */
@@ -55,6 +60,7 @@
 #define _SP_INSTR_CODE_ADVANCE_HB_BY_WO_STR        "0x0002"
 #define _SP_INSTR_CODE_ZERO_WR_STR                 "0x0004"
 #define _SP_INSTR_CODE_ONES_COMP_WR1_TO_WR0_STR    "0x0006"
+#define _SP_INSTR_CODE_RETURN_SUB_STR              "0x0007"
 #define _SP_INSTR_CODE_CASE1_DJ_WR_TO_WR_STR       "0x0008"
 #define _SP_INSTR_CODE_CASE2_DC_WR_TO_WR_STR       "0x000c"
 #define _SP_INSTR_CODE_CASE2_DJ_WR_TO_WR_STR       "0x0010"
@@ -91,6 +97,7 @@
 #define _SP_INSTR_CODE_ADVANCE_HB_BY_WO     0x0002
 #define _SP_INSTR_CODE_ZERO_WR              0x0004
 #define _SP_INSTR_CODE_ONES_COMP_WR1_TO_WR0 0x0006
+#define _SP_INSTR_CODE_RETURN_SUB           0x0007
 #define _SP_INSTR_CODE_CASE1_DJ_WR_TO_WR    0x0008
 #define _SP_INSTR_CODE_CASE2_DC_WR_TO_WR    0x000c
 #define _SP_INSTR_CODE_CASE2_DJ_WR_TO_WR    0x0010
@@ -212,6 +219,7 @@ typedef struct _sp_assembler_parser_context
    uint32_t                   ipsec_hxs;
    uint32_t                   other_l4_hxs;
    uint32_t                   l5_hxs;
+   char                      *current_source_line_p;
 } _sp_assembler_parser_context_t;
 
 /* ------------------------------------------------------------------------
@@ -225,6 +233,7 @@ typedef enum
    _sp_assembler_advance_hb_by_wo_e,
    _sp_assembler_zero_wr_e,
    _sp_assembler_ones_comp_wr1_to_wr0_e,
+   _sp_assembler_return_sub_e,
    _sp_assembler_case1_dj_wr_to_wr_e,
    _sp_assembler_case2_dc_wr_to_wr_e,
    _sp_assembler_case2_dj_wr_to_wr_e,
@@ -342,6 +351,9 @@ typedef struct _sp_assembler_instruction
 
    /* Number of bits */
    uint8_t                            num_bits;
+
+   /* Gosub instead of a normal jump */
+   bool                               gosub;
 
 } _sp_assembler_instruction_t;
 

@@ -27,6 +27,7 @@
  * ===================================================================*/
 
 #include "SPIR.h"
+#include "logger.hpp"
 
 uint32_t CIR::currentUniqueName = 0;
 
@@ -256,18 +257,20 @@ void CIR::createIRExpressions (CExecuteSection section, std::vector <CStatement>
     for (unsigned int i=0; i < section.executeExpressions.size(); i++)
     {
         CExecuteExpression ee = section.executeExpressions[i];
-        if      (ee.type == ACTION)
+        if      (ee.type == IT_ACTION)
             createIRAction (ee.actionInstr, statements);
-        else if (ee.type == ASSIGN)
+        else if (ee.type == IT_ASSIGN)
             createIRAssign (ee.assignInstr, statements);
-        else if (ee.type == IF)
+        else if (ee.type == IT_IF)
             createIRIf     (ee.ifInstr,     statements);
-        else if (ee.type == LOOP)
+        else if (ee.type == IT_LOOP)
             createIRLoop     (ee.loopInstr, statements);
-        else if (ee.type == INLINE)
+        else if (ee.type == IT_INLINE)
             createIRInline (ee.inlineInstr, statements);
-        else if (ee.type == SWITCH)
+        else if (ee.type == IT_SWITCH)
             createIRSwitch (ee.switchInstr, statements);
+		else if (ee.type == IT_GOSUB)
+			createIRGosub (ee.gosubInstr, statements);
     }
 }
 
@@ -465,6 +468,14 @@ void CIR::createIRLoop (CExecuteLoop loopInstr, std::vector<CStatement> &stateme
     statements.push_back(lstatement2);
 }
 
+void CIR::createIRGosub (CExecuteGosub gosubInstr, std::vector<CStatement> &statements)
+{
+	CStatement  gStatement;
+
+	gStatement.createGosubStatement(gosubInstr.name);
+	statements.push_back(gStatement);
+}
+
 void CIR::createIRAction (CExecuteAction action, std::vector<CStatement> &statements)
 {
     CStatement gStatement, eStatement;
@@ -581,7 +592,18 @@ void CIR::createIRAssign (CExecuteAssign assign, std::vector <CStatement> &state
 
     statement.newAssignStatement(assign.line);
     /*Create left side*/
-    createIRExprValue(assign.name, statement.expr->dyadic.left, assign.line);
+    try
+    {
+    	createIRExprValue(assign.name, statement.expr->dyadic.left, assign.line);
+    }
+	catch (CGenericErrorLine& ex)
+	{
+		//ignore this <assign-variable name because is not supported
+		LOG( logger::WARN ) << "Variable name in <assign-variable> tag is not supported: " << ex.getErrorMsg() << std::endl;
+		statement.deleteStatement();
+		return;
+	}
+
     /*Check that this is a valid assign statement*/
     if (statement.expr->dyadic.left->type != EOBJREF ||
         (statement.expr->dyadic.left->objref->type != OB_RA &&
@@ -590,8 +612,19 @@ void CIR::createIRAssign (CExecuteAssign assign, std::vector <CStatement> &state
                                  assign.line, assign.name);
 
     /*Create right side*/
-    createIRExprValue(assign.value, statement.expr->dyadic.right, assign.line);
-    if (statement.expr->dyadic.right->isCond())
+    try
+    {
+    	createIRExprValue(assign.value, statement.expr->dyadic.right, assign.line);
+    }
+	catch (CGenericErrorLine& ex)
+	{
+		//ignore this <assign-variable value because is not supported
+		LOG( logger::WARN ) << "Variable value in <assign-variable> tag is not supported: " << ex.getErrorMsg() << std::endl;
+		statement.deleteStatement();
+		return;
+	}
+
+	if (statement.expr->dyadic.right->isCond())
         throw CGenericErrorLine(ERR_UNEXPECTED_COND_ASSIGN, assign.line,
                                 assign.value);
     statements.push_back(statement);
@@ -1061,6 +1094,9 @@ CENode::CENode (ENodeType newType, CENode* unary)
     *this = CENode();
     type       = newType;
     monadic    = unary;
+	dyadic.left    = NULL;
+	dyadic.right   = NULL;
+	objref     = NULL;
 }
 
 CENode::CENode (ENodeType newType, CENode* left, CENode* right)
@@ -1070,6 +1106,8 @@ CENode::CENode (ENodeType newType, CENode* left, CENode* right)
     dyadic.left    = left;
     dyadic.right   = right;
     dyadic.dir     = 0;
+	monadic		   = NULL;
+	objref         = NULL;
 }
 
 void CENode::createIntENode(uint64_t intval1)
@@ -1359,6 +1397,23 @@ void CStatement::createGotoStatement (ProtoType type)
     this->flags.externJump  = 1;
 }
 
+void CStatement::createGosubStatement   (CLabel newLabel)
+{
+	this->type  = ST_GOSUB;
+	this->label = newLabel;
+}
+
+void CStatement::createGosubStatement   (std::string labelName)
+{
+	this->type  = ST_GOSUB;
+	this->label = CLabel (labelName);
+}
+
+void CStatement::createRetsubStatement  ()
+{
+	this->type  = ST_RETSUB;
+}
+
 void CStatement::createSectionEndStatement ()
 {
     this->type              = ST_SECTIONEND;
@@ -1439,6 +1494,8 @@ void CStatement::deleteStatementNonRecursive ()
 CStatement::CStatement()
     : type(ST_EMPTY), text(""), line(NO_LINE)
 {
+	expr = NULL;
+	switchTable = NULL;
 };
 
 

@@ -177,9 +177,12 @@ typedef enum StatementType {
     ST_SWITCH,          //  switch statement
     ST_INLINE,          //  inline assembly
     ST_IFGOTO,          //  if expression is true goto 'label'
-    ST_IFNGOTO          //  if expression is NOT true goto 'label
+    ST_IFNGOTO,         //  if expression is NOT true goto 'label
                         //  the statement must be replaced in reviseIR process
                         //  since it's not recognized in the createCode process
+	ST_GOSUB,           //  gosub
+	ST_RETSUB           //  return sub
+
 } StatementType;
 
 class CReg {
@@ -240,6 +243,10 @@ class CDyadic
       CENode *left;
       CENode *right;
       bool    dir;
+
+	  /*constructors*/
+	  CDyadic (): left(NULL), right(NULL) {};
+
 };
 
 class CSwitchTable
@@ -352,6 +359,9 @@ class CStatement
     void createGotoStatement    (CLabel newLabel);
     void createGotoStatement    (std::string labelName);
     void createGotoStatement    (ProtoType type);
+	void createGosubStatement   (CLabel newLabel);
+	void createGosubStatement   (std::string labelName);
+	void createRetsubStatement  ();
     void createLabelStatement   ();
     void createLabelStatement   (std::string labelName);
     void createLabelStatement   (CLabel label);
@@ -421,6 +431,7 @@ class CIR
     void createIRAssign      (CExecuteAssign     assign,     std::vector<CStatement> &statements);
     void createIRIf          (CExecuteIf         instr,      std::vector<CStatement> &statements);
     void createIRLoop        (CExecuteLoop       instr,      std::vector<CStatement> &statements);
+	void createIRGosub		 (CExecuteGosub		 instr,      std::vector<CStatement> &statements);
     void createIRInline      (CExecuteInline     instr,      std::vector<CStatement> &statements);
     void createIRSwitch      (CExecuteSwitch     switchElem, std::vector<CStatement> &statements);
 

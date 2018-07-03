@@ -588,37 +588,37 @@ CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNo
     while ( 0 != cur ) {
         // assign
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"assign-variable" ) ) {
-            CExecuteExpression executeExpression(ASSIGN);
+            CExecuteExpression executeExpression(IT_ASSIGN);
             parseExecuteAssign (&executeExpression.assignInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
         // action
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"action" ) ) {
-            CExecuteExpression executeExpression(ACTION);
+            CExecuteExpression executeExpression(IT_ACTION);
             parseExecuteAction (&executeExpression.actionInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
         // if
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"if" ) ) {
-            CExecuteExpression executeExpression(IF);
+            CExecuteExpression executeExpression(IT_IF);
             parseExecuteIf (&executeExpression.ifInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
         // loop
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"loop" ) ) {
-            CExecuteExpression executeExpression(LOOP);
+            CExecuteExpression executeExpression(IT_LOOP);
             parseExecuteLoop (&executeExpression.loopInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
         // inline
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"inline" ) ) {
-            CExecuteExpression executeExpression(INLINE);
+            CExecuteExpression executeExpression(IT_INLINE);
             parseExecuteInline (&executeExpression.inlineInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
         //switch
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"switch" ) ) {
-            CExecuteExpression executeExpression(SWITCH);
+            CExecuteExpression executeExpression(IT_SWITCH);
             parseExecuteSwitch (&executeExpression.switchInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
