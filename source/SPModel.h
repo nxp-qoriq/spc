@@ -56,7 +56,7 @@ public:
     bool createModel( CTaskDef* m_pTaskDef );
 
     // Service functions
-    static e_NetHeaderType  getNetCommHeaderType( std::string protoname );
+    static enum net_prot  getHeaderType( std::string protoname );
 
 
 public:

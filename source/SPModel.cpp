@@ -95,15 +95,15 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
             swPrs.labelsTable[i].instructionOffset =
                 taskSpr.labelsTable[i].position;
             swPrs.labelsTable[i].hdr =
-                getNetCommHeaderType(taskSpr.labelsTable[i].prevNames[0]);
-            if ( swPrs.labelsTable[i].hdr == HEADER_TYPE_NONE ) {
+            		getHeaderType(taskSpr.labelsTable[i].prevNames[0]);
+            if ( swPrs.labelsTable[i].hdr == NET_PROT_NONE ) {
                 std::string shim_protocol =
                     pTaskDef->getShimNoFromCustom( taskSpr.labelsTable[i].prevNames[0] );
                 if ( !shim_protocol.empty() ) { // Shim header is empty if custom protocol is not found
-                    swPrs.labelsTable[i].hdr = getNetCommHeaderType( shim_protocol );
+                    swPrs.labelsTable[i].hdr = getHeaderType( shim_protocol );
                 }
                 else {
-                    // Header type HEADER_TYPE_NONE is not accepted as a valid value
+                    // Header type NET_PROT_NONE is not accepted as a valid value
                     throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
                 }
             }
@@ -113,33 +113,33 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Returns NetComm header type as e_NetHeaderType
+/// Returns header type as enum net_prot
 ////////////////////////////////////////////////////////////////////////////////
-e_NetHeaderType CFMCModel::getNetCommHeaderType( std::string protoname )
+enum net_prot CFMCModel::getHeaderType( std::string protoname )
 {
-    std::map< std::string, e_NetHeaderType > net_types;
-    net_types[ "ethernet" ]  = HEADER_TYPE_ETH;
-    net_types[ "vlan" ]      = HEADER_TYPE_VLAN;
-    net_types[ "llc_snap" ]  = HEADER_TYPE_LLC_SNAP;
-    net_types[ "mpls" ]      = HEADER_TYPE_MPLS;
-    net_types[ "ipv4" ]      = HEADER_TYPE_IPv4;
-    net_types[ "ipv6" ]      = HEADER_TYPE_IPv6;
-    net_types[ "ip" ]        = HEADER_TYPE_IP;
-    net_types[ "tcp" ]       = HEADER_TYPE_TCP;
-    net_types[ "udp" ]       = HEADER_TYPE_UDP;
-    net_types[ "gre" ]       = HEADER_TYPE_GRE;
-    net_types[ "pppoe" ]     = HEADER_TYPE_PPPoE;
-    net_types[ "minencap" ]  = HEADER_TYPE_MINENCAP;
-    net_types[ "sctp" ]      = HEADER_TYPE_SCTP;
-    net_types[ "dccp" ]      = HEADER_TYPE_DCCP;
-    net_types[ "ipsec_ah" ]  = HEADER_TYPE_IPSEC_AH;
-    net_types[ "ipsec_esp" ] = HEADER_TYPE_IPSEC_ESP;
-	net_types[ "otherl3" ]     = HEADER_TYPE_USER_DEFINED_L3;
-	net_types[ "otherl4" ]     = HEADER_TYPE_USER_DEFINED_L4;
-    net_types[ "shim1" ]     = HEADER_TYPE_USER_DEFINED_SHIM1;
-    net_types[ "shim2" ]     = HEADER_TYPE_USER_DEFINED_SHIM2;
+    std::map< std::string, enum net_prot > net_types;
+    net_types[ "ethernet" ]  = NET_PROT_ETH;
+    net_types[ "vlan" ]      = NET_PROT_VLAN;
+    net_types[ "llc_snap" ]  = NET_PROT_LLC_SNAP;
+    net_types[ "mpls" ]      = NET_PROT_MPLS;
+    net_types[ "ipv4" ]      = NET_PROT_IPV4;
+    net_types[ "ipv6" ]      = NET_PROT_IPV6;
+    net_types[ "ip" ]        = NET_PROT_IP;
+    net_types[ "tcp" ]       = NET_PROT_TCP;
+    net_types[ "udp" ]       = NET_PROT_UDP;
+    net_types[ "gre" ]       = NET_PROT_GRE;
+    net_types[ "pppoe" ]     = NET_PROT_PPPOE;
+    net_types[ "minencap" ]  = NET_PROT_MINENCAP;
+    net_types[ "sctp" ]      = NET_PROT_SCTP;
+    net_types[ "dccp" ]      = NET_PROT_DCCP;
+    net_types[ "ipsec_ah" ]  = NET_PROT_IPSEC_AH;
+    net_types[ "ipsec_esp" ] = NET_PROT_IPSEC_ESP;
+	net_types[ "otherl3" ]     = NET_PROT_USER_DEFINED_L3;
+	net_types[ "otherl4" ]     = NET_PROT_USER_DEFINED_L4;
+    net_types[ "shim1" ]     = NET_PROT_USER_DEFINED_SHIM1;
+    net_types[ "shim2" ]     = NET_PROT_USER_DEFINED_SHIM2;
 #ifdef FM_SHIM3_SUPPORT
-    net_types[ "shim3" ]     = HEADER_TYPE_USER_DEFINED_SHIM3;
+    net_types[ "shim3" ]     = NET_PROT_USER_DEFINED_SHIM3;
 #endif /* FM_SHIM3_SUPPORT */
 
 
@@ -147,6 +147,6 @@ e_NetHeaderType CFMCModel::getNetCommHeaderType( std::string protoname )
         return net_types[protoname];
     }
 
-    return HEADER_TYPE_NONE;
+    return NET_PROT_NONE;
 }
 

@@ -34,7 +34,9 @@ extern "C"
 {
 #endif
 #include <stdio.h>
-#include <net_ext.h>
+#include <std_ext.h>
+//include mc net header: /linux/drivers/staging/fsl-mc/include/net.h
+#include <net.h>
 
 #define MAX_SP_CODE_SIZE      		0x7C0
 
@@ -47,8 +49,8 @@ extern "C"
 typedef struct t_PrsLabelParams {
     uint32_t                instructionOffset;              /**< SW parser label instruction offset (2 bytes
                                                                  resolution), relative to Parser RAM. */
-    e_NetHeaderType         hdr;                            /**< The existence of this header will invoke
-                                                                 the SW parser code; Use  HEADER_TYPE_NONE
+    enum net_prot         	hdr;                            /**< The existence of this header will invoke
+                                                                 the SW parser code; Use  NET_PROT_NONE
                                                                  to indicate that sw parser is to run
                                                                  independent of the existence of any protocol
                                                                  (run before HW parser). */
