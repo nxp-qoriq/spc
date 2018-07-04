@@ -37,7 +37,7 @@ extern "C" {
 }
 
 
-void softparser (CTaskDef *task, std::string currentPath, unsigned int baseAddress);
+void softparser (CTaskDef *task, std::string currentPath, unsigned int baseAddress, bool genIntermCode);
 unsigned int assemble   (char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int baseAddress);
 void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list_t *labels);
 

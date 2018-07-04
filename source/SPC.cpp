@@ -138,6 +138,9 @@ int main( int argc, char* argv[] )
 #endif
         cmd.add( namePDL );
 
+        TCLAP::SwitchArg interm_code( "i", "interm",
+            "Generate intermediate code" );
+        cmd.add( interm_code );
 
         cmd.parse( argc, argv );
 
@@ -150,7 +153,8 @@ int main( int argc, char* argv[] )
         int ret = spc_compile(&model,
                     namePDL.getValue().c_str(),
                     nameSP.getValue().c_str(),
-                    strtoul( swOffset.getValue().c_str(), 0, 0 ) );
+                    strtoul( swOffset.getValue().c_str(), 0, 0 ),
+                    interm_code.getValue());
 
         if ( ret != 0 ) {
 			//compile error

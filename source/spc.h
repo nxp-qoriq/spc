@@ -93,7 +93,8 @@ int spc_compile(
 		spc_model*   model,
         const char*  namePDL,
         const char*  nameSP,
-        unsigned int swOffset
+        unsigned int swOffset,
+        bool genIntermCode
 );
 
 const char* spc_get_error( void );

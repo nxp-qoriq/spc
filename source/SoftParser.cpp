@@ -27,22 +27,17 @@
  * ===================================================================*/
 
 #include "SoftParser.h"
-
-#ifdef _DEBUG
-const bool DEBUG_SP= 1;
-#else
-const bool DEBUG_SP = 0;
-#endif
+#include "logger.hpp"
 
 using namespace std;
 
 
 
-void softparser (CTaskDef *task, std::string filePath, unsigned int baseAddress)
+void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, bool genIntermCode)
 {
     CIR               newIR;
     CCode             newCode;
-    std::string       currentPath, fileNoExt, fileName, parsePath, dumpPath;
+    std::string       fileNoExt, baseName, dumpPath;
     std::string       headerPath, binaryPath;
     unsigned char     binary1[CODE_SIZE] = {0};
     sp_label_list_t *labels, *labelsIter;
@@ -51,28 +46,34 @@ void softparser (CTaskDef *task, std::string filePath, unsigned int baseAddress)
     RA::Instance().initRA();
 
     /* set paths*/
-    int m       = filePath.find(".xml");
-    fileNoExt   = filePath.substr(0,m);
-    dumpPath    = fileNoExt+".dump";
-    parsePath   = fileNoExt+".parsed";
-    headerPath  = "softparse.h";
-	binaryPath  = "softparse.bin";
+    int pos    = filePath.find(".xml");
+    fileNoExt  = filePath.substr(0, pos);
+    pos = fileNoExt.find_last_of("/\\");
+    baseName   = fileNoExt.substr(pos + 1, fileNoExt.length() - pos - 1);
 
-    if (DEBUG_SP)
+    dumpPath    = baseName + ".dump";
+    //headerPath  = "softparse.h";
+	//binaryPath  = "softparse.bin";
+    headerPath  = baseName + ".h";
+	binaryPath  = baseName + ".bin";
+
+    if (genIntermCode)
     {
-        newIR.  setDumpIr  (fileNoExt+".ir");
-        newCode.setDumpCode(fileNoExt+".code");
-        newCode.setDumpAsm (fileNoExt+".asm");
+        newIR.setDumpIr  (baseName + ".ir");
+        newCode.setDumpCode(baseName + ".code");
+        newCode.setDumpAsm (baseName + ".asm");
         newCode.setDebugAsm(1);
-        task->dumpSpParsed (parsePath);
+        task->dumpSpParsed(baseName + ".parsed");
     }
 
     /*Parse, create IR and create asm*/
     newIR.createIR          (task);
     newCode.createCode      (newIR);
 
+
     /*assemble*/
-    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, DEBUG_SP, baseAddress);
+    bool debug = LOG_GET_LEVEL() >= logger::DBG1;
+    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug, baseAddress);
 
     /*return result*/
     std::vector <CExtension> extns;

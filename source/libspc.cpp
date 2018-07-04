@@ -61,7 +61,8 @@ extern "C" {
 int spc_compile(spc_model*   cmodel,
     const char*  namePDL,
     const char*  nameSP,
-    unsigned int swOffset)
+    unsigned int swOffset,
+    bool genIntermCode)
 {
     error_text   = "";
 
@@ -87,7 +88,7 @@ int spc_compile(spc_model*   cmodel,
         if ( nameSP ) {
             pdlReader.setSoftParse(1);
             pdlReader.parseNetPDL( nameSP );
-            softparser(&task, nameSP, swOffset);
+            softparser(&task, nameSP, swOffset, genIntermCode);
         }
 
         CFMCModel model;
