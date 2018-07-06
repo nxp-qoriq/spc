@@ -44,26 +44,26 @@ void CCode::createCode (CIR IR)
         protocolsCode.push_back(tempProtoCode);
     }
     prepareEntireCode();
-    if (asmFile && debugAsm)
+    if (asmFile && IR.fDebug)
         dumpAsm();
-    if (codeFile)
+    if (codeFile && IR.fDebug)
         dumpCode();
 
     /*revise*/
     std::string reviseMsg = std::string(50,'-') + "\n" + std::string(18,'-') +
-     "After Revision" + std::string(18,'-') + "\n" + std::string(50,'-')+"\n";
+     "Revised code:" + std::string(18,'-') + "\n" + std::string(50,'-')+"\n";
 
     reviseEntireCode();
     prepareEntireCode();
-    if (asmFile && debugAsm)
+
+    if (asmFile && IR.fDebug)
         *asmFile << reviseMsg;
     if (asmFile)
         dumpAsm();
-    if (codeFile)
-    {
+    if (codeFile && IR.fDebug)
         *codeFile << reviseMsg;
+    if (codeFile)
         dumpCode();
-    }
 }
 
 void CCode::processStatement (CStatement statement, CProtocolCode& code)
@@ -91,6 +91,9 @@ void CCode::processStatement (CStatement statement, CProtocolCode& code)
         case ST_GOTO:
             processJump(statement, code);
             break;
+		case ST_FAFGOTO:
+			processFafJump(statement, code);
+			break;
         case ST_LABEL:
             addInstr (createLABEL(newLabelOp(statement.label)), code);
             break;
@@ -105,6 +108,12 @@ void CCode::processStatement (CStatement statement, CProtocolCode& code)
 			break;
 		case ST_RETSUB:
 			processRetsub(statement, code);
+			break;
+		case ST_SETFAF:
+			processSetFaf(statement, code);
+			break;
+		case ST_RESETFAF:
+			processResetFaf(statement, code);
 			break;
     }
     chksumStored = 0;
@@ -158,8 +167,10 @@ void CCode::processJump (CStatement statement, CProtocolCode& code)
         addInstr(createJMP_PROTOCOL_ETH(), code);
     else if (label.protocol == PT_NEXT_IP)
         addInstr(createJMP_PROTOCOL_IP(), code);
-    else
-        addInstr(createJMP(newHxsOp(jmpHxs), newLabelOp(label)), code);
+    else if (label.protocol == PT_NEXT_TCP || label.protocol == PT_NEXT_UDP)
+		addInstr(createJMP_PROTOCOL_TCPUDP(), code);
+	else
+		addInstr(createJMP(newHxsOp(jmpHxs), newLabelOp(label)), code);
 }
 
 void CCode::processGosub (CStatement statement, CProtocolCode& code)
@@ -172,6 +183,27 @@ void CCode::processGosub (CStatement statement, CProtocolCode& code)
 void CCode::processRetsub (CStatement statement, CProtocolCode& code)
 {
 	addInstr(createRETURN_SUB(), code);
+}
+
+void CCode::processFafJump (CStatement statement, CProtocolCode& code)
+{
+	CLabel label = statement.label;
+
+	addInstr(createJMP_FAF(newLabelOp(label), newFafOp(statement.text)), code);
+}
+
+void CCode::processSetFaf (CStatement statement, CProtocolCode& code)
+{
+	CLabel label = statement.label;
+
+	addInstr(createSET_FAF(newFafOp(statement.text)), code);
+}
+
+void CCode::processResetFaf (CStatement statement, CProtocolCode& code)
+{
+	CLabel label = statement.label;
+
+	addInstr(createCLR_FAF(newFafOp(statement.text)), code);
 }
 
 void CCode::processIf (CENode* expression, CLabel label, CProtocolCode& code)
@@ -806,6 +838,13 @@ CInstruction CCode::createJMP_PROTOCOL_IP       ()
     return instr;
 }
 
+CInstruction CCode::createJMP_PROTOCOL_TCPUDP     ()
+{
+	CInstruction instr(JMP_PROTOCOL_TCPUDP, newHxsOp(1));
+	instr.operands[0]->flags.used= 1;
+	return instr;
+}
+
 CInstruction CCode::createSTORE_IV_TO_RA        (CObjOperand*   opA, CValueOperand* opB)
 {
     CInstruction instr(STORE_IV_TO_RA,       opA, opB);
@@ -1020,6 +1059,36 @@ CInstruction CCode::createCaseInstr (Opcode op, uint8_t hxses, std::vector <CLab
     return instruction;
 }
 
+CInstruction CCode::createSET_FAF (CFafOperand*	opA)
+{
+	CInstruction instr(SET_FAF, opA);
+	instr.operands[0]->flags.defined = 1;
+	return instr;
+}
+
+CInstruction CCode::createCLR_FAF (CFafOperand*	opA)
+{
+	CInstruction instr(CLR_FAF, opA);
+	instr.operands[0]->flags.defined = 1;
+	return instr;
+}
+
+CInstruction CCode::createJMP_FAF (CLabelOperand* opA, CFafOperand*	opB)
+{
+	CInstruction instr(JMP_FAF, opA, opB);
+	instr.operands[0]->flags.defined = 1;
+	instr.operands[1]->flags.defined = 1;
+	return instr;
+}
+
+CInstruction CCode::createGOSUB_FAF (CLabelOperand* opA, CFafOperand* opB)
+{
+	CInstruction instr(GOSUB_FAF, opA, opB);
+	instr.operands[0]->flags.defined = 1;
+	instr.operands[1]->flags.defined = 1;
+	return instr;
+}
+
 /* ---------------------------- create operands ---------------*/
 CLabelOperand* CCode::newLabelOp (CLabel label1)
 {
@@ -1048,6 +1117,27 @@ CRegOperand* CCode::newRegOp (RegType type1)
 CRegOperand* CCode::newRegOp (CReg reg1)
 {
     return newRegOp(reg1.type);
+}
+
+CFafOperand* CCode::newFafOp (FafType type1)
+{
+	CFafOperand*  fafOp     = new CFafOperand();
+	fafOp->faf              = CFaf(type1);
+	fafOp->kind             = OT_FAF;
+	return fafOp;
+}
+
+CFafOperand* CCode::newFafOp (CFaf faf1)
+{
+	return newFafOp(faf1.type);
+}
+
+CFafOperand* CCode::newFafOp (std::string name)
+{
+	CFafOperand*  fafOp     = new CFafOperand();
+	fafOp->faf              = CFaf(name);
+	fafOp->kind             = OT_FAF;
+	return fafOp;
 }
 
 CCondOperand* CCode::newCondOp (CondOperator condOp1)
@@ -1130,6 +1220,10 @@ std::string CInstruction::getOpcodeName()
     opcodeNames[LOAD_BYTES_RA_TO_WR]    = "LOAD_BYTES_RA_TO_WR";
     opcodeNames[LOAD_BITS_FW_TO_WR]     = "LOAD_BITS_FW_TO_WR";
     opcodeNames[LOAD_BITS_IV_TO_WR]     = "LOAD_BITS_IV_TO_WR";
+	opcodeNames[SET_FAF]				= "SET_FAF";
+	opcodeNames[CLR_FAF]				= "CLR_FAF";
+	opcodeNames[JMP_FAF]				= "JMP_FAF";
+	opcodeNames[GOSUB_FAF]				= "GOSUB_FAF";
     opcodeNames[ZERO_WR]                = "ZERO_WR";
     opcodeNames[STORE_IV_TO_RA]         = "STORE_IV_TO_RA";
     opcodeNames[STORE_WR_TO_RA]         = "STORE_WR_TO_RA";
@@ -1151,6 +1245,7 @@ std::string CInstruction::getOpcodeName()
     opcodeNames[JMP]                    = "JMP";
     opcodeNames[JMP_PROTOCOL_ETH]       = "JMP_PROTOCOL_ETH";
     opcodeNames[JMP_PROTOCOL_IP]        = "JMP_PROTOCOL_IP";
+	opcodeNames[JMP_PROTOCOL_TCPUDP]    = "JMP_PROTOCOL_TCPUDP";
 	opcodeNames[GOSUB]                  = "GOSUB";
 	opcodeNames[RETURN_SUB]             = "RETURN_SUB";
     opcodeNames[ONES_COMP_WR1_TO_WR0]   = "ONES_COMP_WR1_TO_WR0";
@@ -1169,6 +1264,11 @@ std::string CInstruction::getOpcodeName()
         return "";
     else
         return opcodeNames[opcode];
+}
+
+Opcode CInstruction::getOpcode()
+{
+	return opcode;
 }
 
 void CInstruction::checkError(int num...)
@@ -1194,7 +1294,8 @@ bool CInstruction::canJump() const
             opcode==CASE3_DJ_WR_TO_WR || opcode==CASE4_DC_WR_TO_WR      ||
             opcode==COMPARE_WORKING_REGS   ||
             opcode==JMP               || opcode==JMP_PROTOCOL_ETH       ||
-            opcode==JMP_PROTOCOL_IP);
+            opcode==JMP_PROTOCOL_IP   || opcode==JMP_PROTOCOL_TCPUDP	||
+			opcode==JMP_FAF);
 }
 
 
@@ -1294,6 +1395,8 @@ std::string CLabel::getProtocolOutputName ()  const
         case PT_VLAN:       return "VLAN_HXS";
         case PT_PPPOE_PPP:  return "PPPOE_PPP_HXS";
         case PT_MPLS:       return "MPLS_HXS";
+		case PT_ARP:		return "ARP_HXS";
+		case PT_IP:			return "IP_HXS";
         case PT_IPV4:       return "IPV4_HXS";
         case PT_IPV6:       return "IPV6_HXS";
         case PT_GRE:        return "GRE_HXS";
@@ -1305,9 +1408,15 @@ std::string CLabel::getProtocolOutputName ()  const
         case PT_IPSEC_ESP:  return "IPSEC_HXS";
         case PT_SCTP:       return "SCTP_HXS";
         case PT_DCCP:       return "DCCP_HXS";
-        case PT_OTHER_L4:   return "OTH_L4_HXS";
-        case PT_NEXT_ETH:   return "PT_NEXT_ETH";
-        case PT_NEXT_IP:    return "PT_NEXT_IP";
+		case PT_OTHER_L4:   return "OTH_L4_HXS";
+		case PT_GTP:		return "GTP_HXS";
+        case PT_ESP:		return "ESP_HXS";
+        case PT_NEXT_ETH:   return "NXT_ETH_TYPE";
+		case PT_NEXT_IP:    return "NXT_IP_PROTO";
+		case PT_NEXT_TCP:    return "NXT_TCPUDP_PORTS";
+        case PT_NEXT_UDP:    return "NXT_TCPUDP_PORTS";
+		case PT_OTHER_L5:    return "OTH_L5_HXS";
+		case PT_FINAL_SHELL: return "FINAL_SHELL";
         case PT_RETURN:     return "RETURN_HXS";
         case PT_END_PARSE:  return "END_PARSE";
         default:    throw CGenericError
@@ -1323,6 +1432,11 @@ std::string CObjOperand::getOperandName () const
 std::string CRegOperand::getOperandName () const
 {
     return reg.getName();
+}
+
+std::string CFafOperand::getOperandName () const
+{
+	return faf.getName();
 }
 
 std::string CShiftOperand::getOperandName () const

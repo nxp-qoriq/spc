@@ -60,6 +60,110 @@ typedef enum RegType {
     R_EMPTY
 } RegType;
 
+typedef enum FafType {
+	FAF_User_Defined_0,
+	FAF_User_Defined_1,
+	FAF_User_Defined_2,
+	FAF_User_Defined_3,
+	FAF_User_Defined_4,
+	FAF_User_Defined_5,
+	FAF_User_Defined_6,
+	FAF_User_Defined_7,
+	FAF_Shim_Shell_Soft_Parsing_Error,
+	FAF_Parsing_Error,
+	FAF_Ethernet_MAC_Present,
+	FAF_Ethernet_Unicast,
+	FAF_Ethernet_Multicast,
+	FAF_Ethernet_Broadcast,
+	FAF_BPDU_Frame,
+	FAF_FCoE_Detected,
+	FAF_FIP_Detected,
+	FAF_Ethernet_Parsing_Error,
+	FAF_LLC_SNAP_Present,
+	FAF_Unknown_LLC_OUI,
+	FAF_LLC_SNAP_Error,
+	FAF_VLAN_1_Present,
+	FAF_VLAN_n_Present,
+	FAF_CFI,
+	FAF_VLAN_Parsing_Error,
+	FAF_PPPoE_PPP_Present,
+	FAF_PPPoE_PPP_Parsing_Error,
+	FAF_MPLS_1_Present,
+	FAF_MPLS_n_Present,
+	FAF_MPLS_Parsing_Error,
+	FAF_ARP_Frame_Present,
+	FAF_ARP_Parsing_Error,
+	FAF_L2_Unknown_Protocol,
+	FAF_L2_Soft_Parsing_Error,
+	FAF_IPv4_1_Present,
+	FAF_IPv4_1_Unicast,
+	FAF_IPv4_1_Multicast,
+	FAF_IPv4_1_Broadcast,
+	FAF_IPv4_n_Present,
+	FAF_IPv4_n_Unicast,
+	FAF_IPv4_n_Multicast,
+	FAF_IPv4_n_Broadcast,
+	FAF_IPv6_1_Present,
+	FAF_IPv6_1_Unicast,
+	FAF_IPv6_1_Multicast,
+	FAF_IPv6_n_Present,
+	FAF_IPv6_n_Unicast,
+	FAF_IPv6_n_Multicast,
+	FAF_IP_1_Option_Present,
+	FAF_IP_1_Unknown_Protocol,
+	FAF_IP_1_Packet_Is_A_Fragment,
+	FAF_IP_1_Packet_Is_An_Initial_Fragment,
+	FAF_IP_1_Parsing_Error,
+	FAF_IP_n_Option_Present,
+	FAF_IP_n_Unknown_Protocol,
+	FAF_IP_n_Packet_Is_A_Fragment,
+	FAF_IP_n_Packet_Is_An_Initial_Fragment,
+	FAF_ICMP_Detected,
+	FAF_IGMP_Detected,
+	FAF_ICMPv6_Detected,
+	FAF_UDP_Light_Detected,
+	FAF_IP_n_Parsing_Error,
+	FAF_Min_Encap_Present,
+	FAF_Min_Encap_S_flag_Set,
+	FAF_Min_Encap_Parsing_Error,
+	FAF_GRE_Present,
+	FAF_GRE_R_Bit_Set,
+	FAF_GRE_Parsing_Error,
+	FAF_L3_Unknown_Protocol,
+	FAF_L3_Soft_Parsing_Error,
+	FAF_UDP_Present,
+	FAF_UDP_Parsing_Error,
+	FAF_TCP_Present,
+	FAF_TCP_Options_Present,
+	FAF_TCP_Control_Bits_6_11_Set,
+	FAF_TCP_Control_Bits_3_5_Set,
+	FAF_TCP_Parsing_Error,
+	FAF_IPSec_Present,
+	FAF_IPSec_ESP_Found,
+	FAF_IPSec_AH_Found,
+	FAF_IPSec_Parsing_Error,
+	FAF_SCTP_Present,
+	FAF_SCTP_Parsing_Error,
+	FAF_DCCP_Present,
+	FAF_DCCP_Parsing_Error,
+	FAF_L4_Unknown_Protocol,
+	FAF_L4_Soft_Parsing_Error,
+	FAF_GTP_Present,
+	FAF_GTP_Parsing_Error,
+	FAF_ESP_Present,
+	FAF_ESP_Parsing_Error,
+	FAF_iSCSI_Detected,
+	FAF_Capwap_Control_Detected,
+	FAF_Capwap_Data_Detected,
+	FAF_L5_Soft_Parsing_Error,
+	FAF_IPv6_Route_Hdr1_Present,
+	FAF_IPv6_Route_Hdr2_Present,
+	FAF_GTP_Primed_Detected,
+	FAF_VLAN_Prio_Detected,
+	FAF_PTP_Detected,
+	FAF_Reserved
+} FafType;
+
 typedef enum ENodeType {                // Expression node types
     /*dyadic*/
     ELESS,EGREATER,ELESSEQU,EGREATEREQU,//  lt, gt, le, ge
@@ -146,7 +250,20 @@ typedef enum RAType {
     RA_IPV6SA1,
     RA_IPV6SA2,
     RA_IPV6DA1,
-    RA_IPV6DA2
+    RA_IPV6DA2,
+	RA_FAF_EXT,
+	RA_FAF_FLAGS,
+	RA_ARPOFFSET,
+	RA_GTPOFFSET,
+	RA_ESPOFFSET,
+	RA_IPSECOFFSET,
+	RA_ROUTHDROFFSET1,
+	RA_ROUTHDROFFSET2,
+	RA_GROSSRUNNINGSUM,
+	RA_PARSEERRCODE,
+	RA_SOFTPARSECTX,
+	RA_FDLENGTH,
+	RA_PARSEERRSTAT
 }RAType;
 
 typedef enum TokenType {
@@ -180,6 +297,9 @@ typedef enum StatementType {
     ST_IFNGOTO,         //  if expression is NOT true goto 'label
                         //  the statement must be replaced in reviseIR process
                         //  since it's not recognized in the createCode process
+	ST_FAFGOTO,			//  if FAF is set then goto 'label'
+	ST_SETFAF,          //  set faf
+	ST_RESETFAF,        //  reset faf
 	ST_GOSUB,           //  gosub
 	ST_RETSUB           //  return sub
 
@@ -194,6 +314,19 @@ class CReg {
 
     CReg        other();
     std::string getName() const;
+};
+
+class CFaf {
+public:
+	FafType type;
+	std::map <FafType, std::string> mapFafInfo;
+
+	CFaf()              : type(FAF_Reserved) {init();}
+	CFaf(FafType type1)	: type(type1) {init();}
+	CFaf(std::string fafname);
+
+	std::string getName() const;
+	void init();
 };
 
 class CLocation
@@ -327,11 +460,11 @@ class CStatementFlags
     bool hasENode;          // this statement has an ENode
     bool externJump;        // jump out of softparser
     bool advanceJump;       // jump and advance HB
-    bool afterSection;      // statement refers to after section
+    ExecuteSectionType   sectionType;
     bool lastStatement;     // last statement (end after or before section)
 
     CStatementFlags():hasENode(0), externJump(0), advanceJump(1),
-                      afterSection(0), lastStatement(0)
+    		sectionType(BEFORE), lastStatement(0)
     {}
 };
 
@@ -354,6 +487,7 @@ class CStatement
     void newChecksumStatement   (int line1);
     void createExpressionStatement (CENode *enode);
     void createIfGotoStatement  (CLabel label1,    int line1);
+	void createIfFafGotoStatement  (CLabel label1,  std::string faf,  int line1);
     void createIfNGotoStatement (CLabel label1,    int line1);
     void createInlineStatement  (std::string data, int line1);
     void createGotoStatement    (CLabel newLabel);
@@ -362,6 +496,8 @@ class CStatement
 	void createGosubStatement   (CLabel newLabel);
 	void createGosubStatement   (std::string labelName);
 	void createRetsubStatement  ();
+	void createSetFafStatement  (std::string faf);
+	void createResetFafStatement (std::string faf);
     void createLabelStatement   ();
     void createLabelStatement   (std::string labelName);
     void createLabelStatement   (CLabel label);
@@ -414,17 +550,19 @@ class CIR
 {
   public:
     std::vector <CProtocolIR> protocolsIRs;
-    CTaskDef                   *task;
-    CIRStatus                 status;
-    static uint32_t           currentUniqueName;
-    std::ofstream             *outFile;
+    CTaskDef                *task;
+    bool 					fDebug;
+    CIRStatus               status;
+    static uint32_t         currentUniqueName;
+    std::ofstream           *outFile;
 
-    CIR() : outFile(0) {}
+    CIR() : outFile(0), fDebug(0) {}
 
     void setTask (CTaskDef *task1);
     void createIR ();
     void initIRProto(std::vector <CStatement> &statements);
     void createIR (CTaskDef *newTask);
+    void setDebug(bool debug);
     void createIRSection     (CExecuteSection    section,    CProtocolIR& pIR);
     void createIRExpressions (CExecuteSection    section,    std::vector<CStatement> &statements);
     void createIRAction      (CExecuteAction     action,     std::vector<CStatement> &statements);
@@ -432,6 +570,7 @@ class CIR
     void createIRIf          (CExecuteIf         instr,      std::vector<CStatement> &statements);
     void createIRLoop        (CExecuteLoop       instr,      std::vector<CStatement> &statements);
 	void createIRGosub		 (CExecuteGosub		 instr,      std::vector<CStatement> &statements);
+	void createIRSetresetfaf (CExecuteSetresetfaf instr,     std::vector<CStatement> &statements);
     void createIRInline      (CExecuteInline     instr,      std::vector<CStatement> &statements);
     void createIRSwitch      (CExecuteSwitch     switchElem, std::vector<CStatement> &statements);
 

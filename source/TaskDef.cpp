@@ -288,8 +288,10 @@ short CProtocol::ProtocolLayer(ProtoType      pt)
         case    PT_VLAN:
         case    PT_PPPOE_PPP:
         case    PT_MPLS:
+		case    PT_ARP:
             return 2;
-        case    PT_IPV4:
+        case    PT_IP:
+		case    PT_IPV4:
         case    PT_IPV6:
         case    PT_OTHER_L3:
         case    PT_GRE:
@@ -303,6 +305,11 @@ short CProtocol::ProtocolLayer(ProtoType      pt)
         case    PT_DCCP:
         case    PT_OTHER_L4:
              return 4;
+		case    PT_GTP:
+		case    PT_ESP:
+		case    PT_OTHER_L5:
+		case    PT_FINAL_SHELL:
+			return 5;
     }
     return 0;
 }

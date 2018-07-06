@@ -38,6 +38,11 @@ void CIR::createIR(CTaskDef* newTask)
     this->createIR();
 }
 
+void CIR::setDebug(bool debug)
+{
+	fDebug = debug;
+}
+
 /*Creates IR. This function analyzes the taskDef structure, and creates an
 IR instruction. The function is the second stage in the compilation process
 (after parsing, and before creating pcode and dumping the assembly code*/
@@ -87,18 +92,18 @@ void CIR::createIR ()
     }
 
     /*dump IR*/
-    if (outFile)
+    if (outFile && fDebug)
         dumpEntireIR();
 
     /*revise*/
     reviseEntireIR();
-    if (outFile)
-    {
+    if (outFile && fDebug)
         *outFile << "-------------------------------" << std::endl
-                 << "--------After revision---------" << std::endl
+                 << "---------Revised code:---------" << std::endl
                  << "-------------------------------" << std::endl;
+
+    if (outFile)
         dumpEntireIR();
-    }
 }
 
 /*Add code that should appear before the 'before' and 'after' sections*/
@@ -230,7 +235,9 @@ void CIR::createIRSection (CExecuteSection section, CProtocolIR& pIR)
       - needed for CLM, to update WO and HB*/
     CStatement sStatement;
     sStatement.createSectionEndStatement();
-    switch(section.type) {
+    sStatement.flags.sectionType = section.type;
+    switch(section.type)
+    {
           /*After the 'before' section we move to the next protocol,
           by modifying W0 and adding the EFBEFORE instruction*/
         case BEFORE:
@@ -239,7 +246,6 @@ void CIR::createIRSection (CExecuteSection section, CProtocolIR& pIR)
             break;
         /*Goto end parse or return hxs after the 'after' section*/
         case AFTER:
-            sStatement.flags.afterSection   = 1;
             sStatement.expr                 = pIR.headerSize->newDeepCopy();
             sStatement.label                = CLabel(PT_END_PARSE);
             break;
@@ -271,6 +277,8 @@ void CIR::createIRExpressions (CExecuteSection section, std::vector <CStatement>
             createIRSwitch (ee.switchInstr, statements);
 		else if (ee.type == IT_GOSUB)
 			createIRGosub (ee.gosubInstr, statements);
+		else if (ee.type == IT_SETRESETFAF)
+			createIRSetresetfaf (ee.setresetfafInstr, statements);
     }
 }
 
@@ -416,37 +424,83 @@ void CIR::createIRIf (CExecuteIf ifInstr, std::vector<CStatement> &statements)
     CObject     object;
     std::string newName, label1Name, label2Name, label3Name, temp;
 
-    /*No if true*/
-    if (!ifInstr.ifTrueValid)
-        throw CGenericErrorLine(ERR_IF_NO_TRUE, ifInstr.line, ifInstr.expr);
-    createIRExprValue (ifInstr.expr, statement.expr, ifInstr.line);
-    if (!statement.expr->isCond())
-        throw CGenericErrorLine(ERR_EXPECTED_COND, ifInstr.line, ifInstr.expr);
+	if (ifInstr.expr != "")
+	{
+		//<if expr="$">
 
-    /*Only an ifTrue label*/
-    if (!ifInstr.ifFalseValid)
-    {
-        lstatement1.createLabelStatement(createUniqueName());
-        statement.createIfNGotoStatement(lstatement1.label, ifInstr.line);
-        statements.push_back(statement);
-        createIRExpressions(ifInstr.ifTrue, statements);
-        statements.push_back(lstatement1);
-    }
+		/*No if true*/
+		if (!ifInstr.ifTrueValid)
+			throw CGenericErrorLine(ERR_IF_NO_TRUE, ifInstr.line, ifInstr.expr);
+		createIRExprValue (ifInstr.expr, statement.expr, ifInstr.line);
+		if (!statement.expr->isCond())
+			throw CGenericErrorLine(ERR_EXPECTED_COND, ifInstr.line, ifInstr.expr);
 
-    /*An ifTrue and ifFalse*/
-    else if (ifInstr.ifFalseValid)
-    {
-        lstatement1.createLabelStatement(createUniqueName());
-        statement.createIfGotoStatement(lstatement1.label, ifInstr.line);
-        statements.push_back(statement);
-        createIRExpressions(ifInstr.ifFalse, statements);
-        lstatement2.createLabelStatement(createUniqueName());
-        gStatement.createGotoStatement(lstatement2.label);
-        statements.push_back(gStatement);
-        statements.push_back(lstatement1);
-        createIRExpressions(ifInstr.ifTrue, statements);
-        statements.push_back(lstatement2);
-    }
+		/*Only an ifTrue label*/
+		if (!ifInstr.ifFalseValid)
+		{
+			lstatement1.createLabelStatement(createUniqueName());
+			statement.createIfNGotoStatement(lstatement1.label, ifInstr.line);
+			statements.push_back(statement);
+			createIRExpressions(ifInstr.ifTrue, statements);
+			statements.push_back(lstatement1);
+		}
+
+		/*An ifTrue and ifFalse*/
+		else if (ifInstr.ifFalseValid)
+		{
+			lstatement1.createLabelStatement(createUniqueName());
+			statement.createIfGotoStatement(lstatement1.label, ifInstr.line);
+			statements.push_back(statement);
+			createIRExpressions(ifInstr.ifFalse, statements);
+			lstatement2.createLabelStatement(createUniqueName());
+			gStatement.createGotoStatement(lstatement2.label);
+			statements.push_back(gStatement);
+			statements.push_back(lstatement1);
+			createIRExpressions(ifInstr.ifTrue, statements);
+			statements.push_back(lstatement2);
+		}
+	}
+	else
+	{
+		if (ifInstr.faf != "")
+		{
+			//<if faf="">
+
+			if (ifInstr.ifTrueValid && ifInstr.ifFalseValid)
+			{
+				lstatement1.createLabelStatement(createUniqueName());
+				statement.createIfFafGotoStatement(lstatement1.label, ifInstr.faf, ifInstr.line);
+				statements.push_back(statement);
+				createIRExpressions(ifInstr.ifFalse, statements);
+				lstatement2.createLabelStatement(createUniqueName());
+				gStatement.createGotoStatement(lstatement2.label);
+				statements.push_back(gStatement);
+				statements.push_back(lstatement1);
+				createIRExpressions(ifInstr.ifTrue, statements);
+				statements.push_back(lstatement2);
+			}
+			else if (ifInstr.ifTrueValid)
+			{
+				lstatement1.createLabelStatement(createUniqueName());
+				statement.createIfFafGotoStatement(lstatement1.label, ifInstr.faf, ifInstr.line);
+				statements.push_back(statement);
+				lstatement2.createLabelStatement(createUniqueName());
+				gStatement.createGotoStatement(lstatement2.label);
+				statements.push_back(gStatement);
+				statements.push_back(lstatement1);
+				createIRExpressions(ifInstr.ifTrue, statements);
+				statements.push_back(lstatement2);
+			}
+			else if (ifInstr.ifFalseValid)
+			{
+				lstatement1.createLabelStatement(createUniqueName());
+				statement.createIfFafGotoStatement(lstatement1.label, ifInstr.faf, ifInstr.line);
+				statements.push_back(statement);
+				createIRExpressions(ifInstr.ifFalse, statements);
+				statements.push_back(lstatement1);
+			}
+		}
+	}
 }
 
 void CIR::createIRLoop (CExecuteLoop loopInstr, std::vector<CStatement> &statements)
@@ -473,6 +527,20 @@ void CIR::createIRGosub (CExecuteGosub gosubInstr, std::vector<CStatement> &stat
 	CStatement  gStatement;
 
 	gStatement.createGosubStatement(gosubInstr.name);
+	statements.push_back(gStatement);
+}
+
+void CIR::createIRSetresetfaf (CExecuteSetresetfaf setresetfafInstr, std::vector<CStatement> &statements)
+{
+	CStatement  gStatement;
+
+	if (setresetfafInstr.faf)
+	{
+		if (setresetfafInstr.set)
+			gStatement.createSetFafStatement(setresetfafInstr.name);
+		else
+			gStatement.createResetFafStatement(setresetfafInstr.name);
+	}
 	statements.push_back(gStatement);
 }
 
@@ -521,12 +589,16 @@ void CIR::createIRAction (CExecuteAction action, std::vector<CStatement> &statem
 
         /*Check for errors*/
         if (!gStatement.flags.advanceJump && (pt == PT_NEXT_ETH ||
-                                              pt == PT_NEXT_IP))
+                                              pt == PT_NEXT_IP ||
+											  pt == PT_NEXT_TCP ||
+											  pt == PT_NEXT_UDP))
             throw CGenericErrorLine(ERR_ADVANCE_REQUIRED, action.line,
                                     action.advance);
         if (gStatement.flags.advanceJump && (pt == PT_RETURN))
             throw CGenericErrorLine(ERR_ADVANCE_NOT_ALLOWED,
                                     action.line, action.advance);
+
+//TODO:  Warning: Is this workaround needed on DPAA2 ?
 
         /*Workaround for HW bug 19894
         The Parser maintains the outcome of its parsing activities in a
@@ -924,6 +996,8 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
         case PT_VLAN:       lookForRAType = RA_VLANTCIOFFSET_N; break;
         case PT_LLC_SNAP:   lookForRAType = RA_LLC_SNAPOFFSET;  break;
         case PT_MPLS:       lookForRAType = RA_MPLSOFFSET_N;    break;
+		case PT_ARP:        lookForRAType = RA_ARPOFFSET;       break;
+        case PT_IP:         lookForRAType = RA_IPOFFSET_N;      break;
         case PT_IPV4:       lookForRAType = RA_IPOFFSET_N;      break;
         case PT_IPV6:       lookForRAType = RA_IPOFFSET_N;      break;
         case PT_TCP:        lookForRAType = RA_L4OFFSET;        break;
@@ -937,6 +1011,10 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
         case PT_IPSEC_ESP:  lookForRAType = RA_L4OFFSET;        break;
         case PT_OTHER_L3:   lookForRAType = RA_NXTHDROFFSET;    break;
         case PT_OTHER_L4:   lookForRAType = RA_NXTHDROFFSET;    break;
+		case PT_GTP:        lookForRAType = RA_GTPOFFSET;       break;
+		case PT_ESP:        lookForRAType = RA_ESPOFFSET;       break;
+		case PT_OTHER_L5:   lookForRAType = RA_NXTHDROFFSET;    break;
+		case PT_FINAL_SHELL: lookForRAType = RA_NXTHDROFFSET;    break;
         default: throw CGenericErrorLine (ERR_INTERNAL_SP_ERROR, line);
     }
 
@@ -960,6 +1038,10 @@ ProtoType CIR::findProtoLabel (std::string nextproto, int line) const
         return PT_NEXT_ETH;
     else if (insensitiveCompare(newName, "after_ip"))
         return PT_NEXT_IP;
+	else if (insensitiveCompare(newName, "after_tcp"))
+		return PT_NEXT_TCP;
+	else if (insensitiveCompare(newName, "after_udp"))
+		return PT_NEXT_UDP;
     else
         return findSpecificProtocol(newName, line);
 }
@@ -976,6 +1058,8 @@ ProtoType CIR::findSpecificProtocol(std::string name, int line) const
     protocolsLabels["vlan"]         = PT_VLAN;
     protocolsLabels["pppoe"]        = PT_PPPOE_PPP;
     protocolsLabels["mpls"]         = PT_MPLS;
+	protocolsLabels["arp"]          = PT_ARP;
+	protocolsLabels["ip"]           = PT_IP;
     protocolsLabels["ipv4"]         = PT_IPV4;
     protocolsLabels["ipv6"]         = PT_IPV6;
     protocolsLabels["gre"]          = PT_GRE;
@@ -988,6 +1072,10 @@ ProtoType CIR::findSpecificProtocol(std::string name, int line) const
     protocolsLabels["sctp"]         = PT_SCTP;
     protocolsLabels["dccp"]         = PT_DCCP;
     protocolsLabels["otherl4"]      = PT_OTHER_L4;
+	protocolsLabels["gtp"]          = PT_GTP;
+	protocolsLabels["esp"]          = PT_ESP;
+	protocolsLabels["otherl5"]      = PT_OTHER_L5;
+	protocolsLabels["finalshell"]   = PT_FINAL_SHELL;
 
     protocolsLabelsIterator = protocolsLabels.find(newName);
     if (protocolsLabelsIterator == protocolsLabels.end())
@@ -1031,6 +1119,137 @@ std::string CReg::getName() const
         default:
             throw CGenericError (ERR_INTERNAL_SP_ERROR, "wrong register type");
     }
+}
+
+/* ------------------------ CFaf---------------------------------*/
+
+
+CFaf::CFaf(std::string fafname)
+{
+	init();
+
+	type = FAF_Reserved;
+	std::map <FafType, std::string>::const_iterator it;
+	for (it = mapFafInfo.begin(); it != mapFafInfo.end(); it++)
+	{
+		if (it->second == fafname)
+		{
+			type = it->first;
+			break;
+		}
+	}
+}
+
+void CFaf::init()
+{
+	mapFafInfo[FAF_User_Defined_0] = "FAF_User_Defined_0";
+	mapFafInfo[FAF_User_Defined_1] = "FAF_User_Defined_1";
+	mapFafInfo[FAF_User_Defined_2] = "FAF_User_Defined_2";
+	mapFafInfo[FAF_User_Defined_3] = "FAF_User_Defined_3";
+	mapFafInfo[FAF_User_Defined_4] = "FAF_User_Defined_4";
+	mapFafInfo[FAF_User_Defined_5] = "FAF_User_Defined_5";
+	mapFafInfo[FAF_User_Defined_6] = "FAF_User_Defined_6";
+	mapFafInfo[FAF_User_Defined_7] = "FAF_User_Defined_7";
+	mapFafInfo[FAF_Shim_Shell_Soft_Parsing_Error] = "FAF_Shim_Shell_Soft_Parsing_Error";
+	mapFafInfo[FAF_Parsing_Error] = "FAF_Parsing_Error";
+	mapFafInfo[FAF_Ethernet_MAC_Present] = "FAF_Ethernet_MAC_Present";
+	mapFafInfo[FAF_Ethernet_Unicast] = "FAF_Ethernet_Unicast";
+	mapFafInfo[FAF_Ethernet_Multicast] = "FAF_Ethernet_Multicast";
+	mapFafInfo[FAF_Ethernet_Broadcast] = "FAF_Ethernet_Broadcast";
+	mapFafInfo[FAF_BPDU_Frame] = "FAF_BPDU_Frame";
+	mapFafInfo[FAF_FCoE_Detected] = "FAF_FCoE_Detected";
+	mapFafInfo[FAF_FIP_Detected] = "FAF_FIP_Detected";
+	mapFafInfo[FAF_Ethernet_Parsing_Error] = "FAF_Ethernet_Parsing_Error";
+	mapFafInfo[FAF_LLC_SNAP_Present] = "FAF_LLC_SNAP_Present";
+	mapFafInfo[FAF_Unknown_LLC_OUI] = "FAF_Unknown_LLC_OUI";
+	mapFafInfo[FAF_LLC_SNAP_Error] = "FAF_LLC_SNAP_Error";
+	mapFafInfo[FAF_VLAN_1_Present] = "FAF_VLAN_1_Present";
+	mapFafInfo[FAF_VLAN_n_Present] = "FAF_VLAN_n_Present";
+	mapFafInfo[FAF_CFI] = "FAF_CFI";
+	mapFafInfo[FAF_VLAN_Parsing_Error] = "FAF_VLAN_Parsing_Error";
+	mapFafInfo[FAF_PPPoE_PPP_Present] = "FAF_PPPoE_PPP_Present";
+	mapFafInfo[FAF_PPPoE_PPP_Parsing_Error] = "FAF_PPPoE_PPP_Parsing_Error";
+	mapFafInfo[FAF_MPLS_1_Present] = "FAF_MPLS_1_Present";
+	mapFafInfo[FAF_MPLS_n_Present] = "FAF_MPLS_n_Present";
+	mapFafInfo[FAF_MPLS_Parsing_Error] = "FAF_MPLS_Parsing_Error";
+	mapFafInfo[FAF_ARP_Frame_Present] = "FAF_ARP_Frame_Present";
+	mapFafInfo[FAF_ARP_Parsing_Error] = "FAF_ARP_Parsing_Error";
+	mapFafInfo[FAF_L2_Unknown_Protocol] = "FAF_L2_Unknown_Protocol";
+	mapFafInfo[FAF_L2_Soft_Parsing_Error] = "FAF_L2_Soft_Parsing_Error";
+	mapFafInfo[FAF_IPv4_1_Present] = "FAF_IPv4_1_Present";
+	mapFafInfo[FAF_IPv4_1_Unicast] = "FAF_IPv4_1_Unicast";
+	mapFafInfo[FAF_IPv4_1_Multicast] = "FAF_IPv4_1_Multicast";
+	mapFafInfo[FAF_IPv4_1_Broadcast] = "FAF_IPv4_1_Broadcast";
+	mapFafInfo[FAF_IPv4_n_Present] = "FAF_IPv4_n_Present";
+	mapFafInfo[FAF_IPv4_n_Unicast] = "FAF_IPv4_n_Unicast";
+	mapFafInfo[FAF_IPv4_n_Multicast] = "FAF_IPv4_n_Multicast";
+	mapFafInfo[FAF_IPv4_n_Broadcast] = "FAF_IPv4_n_Broadcast";
+	mapFafInfo[FAF_IPv6_1_Present] = "FAF_IPv6_1_Present";
+	mapFafInfo[FAF_IPv6_1_Unicast] = "FAF_IPv6_1_Unicast";
+	mapFafInfo[FAF_IPv6_1_Multicast] = "FAF_IPv6_1_Multicast";
+	mapFafInfo[FAF_IPv6_n_Present] = "FAF_IPv6_n_Present";
+	mapFafInfo[FAF_IPv6_n_Unicast] = "FAF_IPv6_n_Unicast";
+	mapFafInfo[FAF_IPv6_n_Multicast] = "FAF_IPv6_n_Multicast";
+	mapFafInfo[FAF_IP_1_Option_Present] = "FAF_IP_1_Option_Present";
+	mapFafInfo[FAF_IP_1_Unknown_Protocol] = "FAF_IP_1_Unknown_Protocol";
+	mapFafInfo[FAF_IP_1_Packet_Is_A_Fragment] = "FAF_IP_1_Packet_Is_A_Fragment";
+	mapFafInfo[FAF_IP_1_Packet_Is_An_Initial_Fragment] = "FAF_IP_1_Packet_Is_An_Initial_Fragment";
+	mapFafInfo[FAF_IP_1_Parsing_Error] = "FAF_IP_1_Parsing_Error";
+	mapFafInfo[FAF_IP_n_Option_Present] = "FAF_IP_n_Option_Present";
+	mapFafInfo[FAF_IP_n_Unknown_Protocol] = "FAF_IP_n_Unknown_Protocol";
+	mapFafInfo[FAF_IP_n_Packet_Is_A_Fragment] = "FAF_IP_n_Packet_Is_A_Fragment";
+	mapFafInfo[FAF_IP_n_Packet_Is_An_Initial_Fragment] = "FAF_IP_n_Packet_Is_An_Initial_Fragment";
+	mapFafInfo[FAF_ICMP_Detected] = "FAF_ICMP_Detected";
+	mapFafInfo[FAF_IGMP_Detected] = "FAF_IGMP_Detected";
+	mapFafInfo[FAF_ICMPv6_Detected] = "FAF_ICMPv6_Detected";
+	mapFafInfo[FAF_UDP_Light_Detected] = "FAF_UDP_Light_Detected";
+	mapFafInfo[FAF_IP_n_Parsing_Error] = "FAF_IP_n_Parsing_Error";
+	mapFafInfo[FAF_Min_Encap_Present] = "FAF_Min_Encap_Present";
+	mapFafInfo[FAF_Min_Encap_S_flag_Set] = "FAF_Min_Encap_S_flag_Set";
+	mapFafInfo[FAF_Min_Encap_Parsing_Error] = "FAF_Min_Encap_Parsing_Error";
+	mapFafInfo[FAF_GRE_Present] = "FAF_GRE_Present";
+	mapFafInfo[FAF_GRE_R_Bit_Set] = "FAF_GRE_R_Bit_Set";
+	mapFafInfo[FAF_GRE_Parsing_Error] = "FAF_GRE_Parsing_Error";
+	mapFafInfo[FAF_L3_Unknown_Protocol] = "FAF_L3_Unknown_Protocol";
+	mapFafInfo[FAF_L3_Soft_Parsing_Error] = "FAF_L3_Soft_Parsing_Error";
+	mapFafInfo[FAF_UDP_Present] = "FAF_UDP_Present";
+	mapFafInfo[FAF_UDP_Parsing_Error] = "FAF_UDP_Parsing_Error";
+	mapFafInfo[FAF_TCP_Present] = "FAF_TCP_Present";
+	mapFafInfo[FAF_TCP_Options_Present] = "FAF_TCP_Options_Present";
+	mapFafInfo[FAF_TCP_Control_Bits_6_11_Set] = "FAF_TCP_Control_Bits_6_11_Set";
+	mapFafInfo[FAF_TCP_Control_Bits_3_5_Set] = "FAF_TCP_Control_Bits_3_5_Set";
+	mapFafInfo[FAF_TCP_Parsing_Error] = "FAF_TCP_Parsing_Error";
+	mapFafInfo[FAF_IPSec_Present] = "FAF_IPSec_Present";
+	mapFafInfo[FAF_IPSec_ESP_Found] = "FAF_IPSec_ESP_Found";
+	mapFafInfo[FAF_IPSec_AH_Found] = "FAF_IPSec_AH_Found";
+	mapFafInfo[FAF_IPSec_Parsing_Error] = "FAF_IPSec_Parsing_Error";
+	mapFafInfo[FAF_SCTP_Present] = "FAF_SCTP_Present";
+	mapFafInfo[FAF_SCTP_Parsing_Error] = "FAF_SCTP_Parsing_Error";
+	mapFafInfo[FAF_DCCP_Present] = "FAF_DCCP_Present";
+	mapFafInfo[FAF_DCCP_Parsing_Error] = "FAF_DCCP_Parsing_Error";
+	mapFafInfo[FAF_L4_Unknown_Protocol] = "FAF_L4_Unknown_Protocol";
+	mapFafInfo[FAF_L4_Soft_Parsing_Error] = "FAF_L4_Soft_Parsing_Error";
+	mapFafInfo[FAF_GTP_Present] = "FAF_GTP_Present";
+	mapFafInfo[FAF_GTP_Parsing_Error] = "FAF_GTP_Parsing_Error";
+	mapFafInfo[FAF_ESP_Present] = "FAF_ESP_Present";
+	mapFafInfo[FAF_ESP_Parsing_Error] = "FAF_ESP_Parsing_Error";
+	mapFafInfo[FAF_iSCSI_Detected] = "FAF_iSCSI_Detected";
+	mapFafInfo[FAF_Capwap_Control_Detected] = "FAF_Capwap_Control_Detected";
+	mapFafInfo[FAF_Capwap_Data_Detected] = "FAF_Capwap_Data_Detected";
+	mapFafInfo[FAF_L5_Soft_Parsing_Error] = "FAF_L5_Soft_Parsing_Error";
+	mapFafInfo[FAF_IPv6_Route_Hdr1_Present] = "FAF_IPv6_Route_Hdr1_Present";
+	mapFafInfo[FAF_IPv6_Route_Hdr2_Present] = "FAF_IPv6_Route_Hdr2_Present";
+	mapFafInfo[FAF_GTP_Primed_Detected] = "FAF_GTP_Primed_Detected";
+	mapFafInfo[FAF_VLAN_Prio_Detected] = "FAF_VLAN_Prio_Detected";
+	mapFafInfo[FAF_PTP_Detected] = "FAF_PTP_Detected";
+	mapFafInfo[FAF_Reserved] = "FAF_Reserved";
+
+}
+
+std::string CFaf::getName() const
+{
+	std::map <FafType, std::string>::const_iterator it = mapFafInfo.find(type);
+	return it->second;
 }
 
 /* ------------------------ CObject -----------------------------*/
@@ -1338,6 +1557,14 @@ void CStatement::createIfGotoStatement (CLabel label1, int line1)
     this->flags.hasENode    = 1;
 }
 
+void CStatement::createIfFafGotoStatement (CLabel label1, std::string faf, int line1)
+{
+	this->type              = ST_FAFGOTO;
+	this->label             = label1;
+	this->line              = line1;
+	this->text				= faf;
+}
+
 void CStatement::createIfNGotoStatement (CLabel label1, int line1)
 {
     this->type              = ST_IFNGOTO;
@@ -1412,6 +1639,18 @@ void CStatement::createGosubStatement   (std::string labelName)
 void CStatement::createRetsubStatement  ()
 {
 	this->type  = ST_RETSUB;
+}
+
+void CStatement::createSetFafStatement  (std::string faf)
+{
+	this->type  = ST_SETFAF;
+	this->text = faf;
+}
+
+void CStatement::createResetFafStatement (std::string faf)
+{
+	this->type  = ST_RESETFAF;
+	this->text = faf;
 }
 
 void CStatement::createSectionEndStatement ()
@@ -1541,118 +1780,109 @@ void CIR::deleteIR ()
 
 void RA::initRA()
 {
-    RAInInfo["gpr1"]                  = RA_GPR1;
-    RAInInfo["gpr2"]                  = RA_GPR2;
-    RAInInfo["logicalportid"]         = RA_LOGICALPORTID;
-    RAInInfo["shimr"]                 = RA_SHIMR;
-    RAInInfo["l2r"]                   = RA_L2R;
-    RAInInfo["l3r"]                   = RA_L3R;
-    RAInInfo["l4r"]                   = RA_L4R;
-    RAInInfo["classificationplanid"]  = RA_CLASSIFICATIONPLANID;
-    RAInInfo["nxthdr"]                = RA_NXTHDR;
-    RAInInfo["runningsum"]            = RA_RUNNINGSUM;
-    RAInInfo["flags"]                 = RA_FLAGS;
-    RAInInfo["fragoffset"]            = RA_FRAGOFFSET;
-    RAInInfo["routtype"]              = RA_ROUTTYPE;
-    RAInInfo["rhp"]                   = RA_RHP;
-    RAInInfo["ipvalid"]               = RA_IPVALID;
-    RAInInfo["shimoffset_1"]          = RA_SHIMOFFSET_1;
-    RAInInfo["shimoffset_2"]          = RA_SHIMOFFSET_2;
+	RAInInfo["gpr1"]                  = RA_GPR1;
+	RAInInfo["gpr2"]                  = RA_GPR2;
+	RAInInfo["nxthdr"]                = RA_NXTHDR;
+	RAInInfo["runningsum"]            = RA_RUNNINGSUM;
+	RAInInfo["fragoffset"]            = RA_FRAGOFFSET;
+	RAInInfo["routtype"]              = RA_ROUTTYPE;
+	RAInInfo["shimoffset_1"]          = RA_SHIMOFFSET_1;
+	RAInInfo["shimoffset_2"]          = RA_SHIMOFFSET_2;
 #ifdef FM_SHIM3_SUPPORT
-    RAInInfo["shimoffset_3"]          = RA_SHIMOFFSET_3;
+	RAInInfo["shimoffset_3"]          = RA_SHIMOFFSET_3;
 #else  /* FM_SHIM3_SUPPORT */
-    RAInInfo["ip_pidoffset"]          = RA_IP_PIDOFFSET;
+	RAInInfo["ip_pidoffset"]          = RA_IP_PIDOFFSET;
 #endif /* FM_SHIM3_SUPPORT */
-    RAInInfo["ethoffset"]             = RA_ETHOFFSET;
-    RAInInfo["llc_snapoffset"]        = RA_LLC_SNAPOFFSET;
-    RAInInfo["vlantcioffset_1"]       = RA_VLANTCIOFFSET_1;
-    RAInInfo["vlantcioffset_n"]       = RA_VLANTCIOFFSET_N;
-    RAInInfo["lastetypeoffset"]       = RA_LASTETYPEOFFSET;
-    RAInInfo["pppoeoffset"]           = RA_PPPOEOFFSET;
-    RAInInfo["mplsoffset_1"]          = RA_MPLSOFFSET_1;
-    RAInInfo["mplsoffset_n"]          = RA_MPLSOFFSET_N;
-    RAInInfo["ipoffset_1"]            = RA_IPOFFSET_1;
-    RAInInfo["ipoffset_n"]            = RA_IPOFFSET_N;
-    RAInInfo["minencapo"]             = RA_MINENCAPOFFSET;
-    RAInInfo["minencapoffset"]        = RA_MINENCAPOFFSET;
-    RAInInfo["greoffset"]             = RA_GREOFFSET;
-    RAInInfo["l4offset"]              = RA_L4OFFSET;
-    RAInInfo["nxthdroffset"]          = RA_NXTHDROFFSET;
-    RAInInfo["framedescriptor1"]      = RA_FRAMEDESCRIPTOR1;
-    RAInInfo["framedescriptor2"]      = RA_FRAMEDESCRIPTOR2;
-    RAInInfo["framedescriptor2_low"]  = RA_FRAMEDESCRIPTOR2_LOW;
-    RAInInfo["actiondescriptor"]      = RA_ACTIONDESCRIPTOR;
-    RAInInfo["ccbase"]                = RA_CCBASE;
-    RAInInfo["ks"]                    = RA_KS;
-    RAInInfo["hpnia"]                 = RA_HPNIA;
-    RAInInfo["sperc"]                 = RA_SPERC;
-    RAInInfo["ipver"]                 = RA_IPVER;
-    RAInInfo["iplength"]              = RA_IPLENGTH;
-    RAInInfo["icp"]                   = RA_ICP;
-    RAInInfo["attr"]                  = RA_ATTR;
-    RAInInfo["nia"]                   = RA_NIA;
-    RAInInfo["ipv4sa"]                = RA_IPV4SA;
-    RAInInfo["ipv4da"]                = RA_IPV4DA;
-    RAInInfo["ipv6sa1"]               = RA_IPV6SA1;
-    RAInInfo["ipv6sa2"]               = RA_IPV6SA2;
-    RAInInfo["ipv6da1"]               = RA_IPV6DA1;
-    RAInInfo["ipv6da2"]               = RA_IPV6DA2;
+	RAInInfo["ethoffset"]             = RA_ETHOFFSET;
+	RAInInfo["llc_snapoffset"]        = RA_LLC_SNAPOFFSET;
+	RAInInfo["vlantcioffset_1"]       = RA_VLANTCIOFFSET_1;
+	RAInInfo["vlantcioffset_n"]       = RA_VLANTCIOFFSET_N;
+	RAInInfo["lastetypeoffset"]       = RA_LASTETYPEOFFSET;
+	RAInInfo["pppoeoffset"]           = RA_PPPOEOFFSET;
+	RAInInfo["mplsoffset_1"]          = RA_MPLSOFFSET_1;
+	RAInInfo["mplsoffset_n"]          = RA_MPLSOFFSET_N;
+	RAInInfo["ipoffset_1"]            = RA_IPOFFSET_1;
+	RAInInfo["ipoffset_n"]            = RA_IPOFFSET_N;
+	RAInInfo["minencapo"]             = RA_MINENCAPOFFSET;
+	RAInInfo["minencapoffset"]        = RA_MINENCAPOFFSET;
+	RAInInfo["greoffset"]             = RA_GREOFFSET;
+	RAInInfo["l4offset"]              = RA_L4OFFSET;
+	RAInInfo["nxthdroffset"]          = RA_NXTHDROFFSET;
+	RAInInfo["sperc"]                 = RA_SPERC;
+	RAInInfo["iplength"]              = RA_IPLENGTH;
+	RAInInfo["attr"]                  = RA_ATTR;
+	RAInInfo["ipv4sa"]                = RA_IPV4SA;
+	RAInInfo["ipv4da"]                = RA_IPV4DA;
+	RAInInfo["ipv6sa1"]               = RA_IPV6SA1;
+	RAInInfo["ipv6sa2"]               = RA_IPV6SA2;
+	RAInInfo["ipv6da1"]               = RA_IPV6DA1;
+	RAInInfo["ipv6da2"]               = RA_IPV6DA2;
+	RAInInfo["fafext"]                = RA_FAF_EXT;
+	RAInInfo["fafflags"]              = RA_FAF_FLAGS;
+	RAInInfo["arpoffset"]			  = RA_ARPOFFSET;
+	RAInInfo["gtpoffset"]             = RA_GTPOFFSET;
+	RAInInfo["espoffset"]             = RA_ESPOFFSET;
+	RAInInfo["ipsecoffset"]           = RA_IPSECOFFSET;
+	RAInInfo["routhdroffset1"]        = RA_ROUTHDROFFSET1;
+	RAInInfo["routhdroffset2"]        = RA_ROUTHDROFFSET2;
+	RAInInfo["grossrunningsum"]       = RA_GROSSRUNNINGSUM;
+	RAInInfo["parseerrcode"]          = RA_PARSEERRCODE;
+	RAInInfo["softparsectx"]          = RA_SOFTPARSECTX;
+	RAInInfo["fdlength"]              = RA_FDLENGTH;
+	RAInInfo["parseerrstat"]          = RA_PARSEERRSTAT;
 
-    RATypeInfo[RA_GPR1]                  = CLocation(0,7);
-    RATypeInfo[RA_GPR2]                  = CLocation(8,15);
-    RATypeInfo[RA_LOGICALPORTID]         = CLocation(16,16);
-    RATypeInfo[RA_SHIMR]                 = CLocation(17,17);
-    RATypeInfo[RA_L2R]                   = CLocation(18,19);
-    RATypeInfo[RA_L3R]                   = CLocation(20,21);
-    RATypeInfo[RA_L4R]                   = CLocation(22,22);
-    RATypeInfo[RA_CLASSIFICATIONPLANID]  = CLocation(23,23);
-    RATypeInfo[RA_NXTHDR]                = CLocation(24,25);
-    RATypeInfo[RA_RUNNINGSUM]            = CLocation(26,27);
-    RATypeInfo[RA_FLAGS]                 = CLocation(28,28);
-    RATypeInfo[RA_FRAGOFFSET]            = CLocation(28,29);
-    RATypeInfo[RA_ROUTTYPE]              = CLocation(30,30);
-    RATypeInfo[RA_RHP]                   = CLocation(31,31);
-    RATypeInfo[RA_IPVALID]               = CLocation(31,31);
-    RATypeInfo[RA_SHIMOFFSET_1]          = CLocation(32,32);
-    RATypeInfo[RA_SHIMOFFSET_2]          = CLocation(33,33);
+	//Parse Array
+	RATypeInfo[RA_GPR1]                  = CLocation(0,7);
+	RATypeInfo[RA_GPR2]                  = CLocation(8,15);
+	//Parse Result:
+	RATypeInfo[RA_NXTHDR]				 = CLocation(16,17);
+	RATypeInfo[RA_FAF_EXT]				 = CLocation(18,19);
+	RATypeInfo[RA_FAF_FLAGS]			 = CLocation(20,31);
+	RATypeInfo[RA_SHIMOFFSET_1]			 = CLocation(32,32);
+	RATypeInfo[RA_SHIMOFFSET_2]			 = CLocation(33,33);
 #ifdef FM_SHIM3_SUPPORT
-    RATypeInfo[RA_SHIMOFFSET_3]          = CLocation(34,34);
+	RATypeInfo[RA_SHIMOFFSET_3]          = CLocation(34,34);
 #else  /* FM_SHIM3_SUPPORT */
-    RATypeInfo[RA_IP_PIDOFFSET]          = CLocation(34,34);
+	RATypeInfo[RA_IP_PIDOFFSET]          = CLocation(34,34);
 #endif /* FM_SHIM3_SUPPORT */
-    RATypeInfo[RA_ETHOFFSET]             = CLocation(35,35);
-    RATypeInfo[RA_LLC_SNAPOFFSET]        = CLocation(36,36);
-    RATypeInfo[RA_VLANTCIOFFSET_1]       = CLocation(37,37);
-    RATypeInfo[RA_VLANTCIOFFSET_N]       = CLocation(38,38);
-    RATypeInfo[RA_LASTETYPEOFFSET]       = CLocation(39,39);
-    RATypeInfo[RA_PPPOEOFFSET]           = CLocation(40,40);
-    RATypeInfo[RA_MPLSOFFSET_1]          = CLocation(41,41);
-    RATypeInfo[RA_MPLSOFFSET_N]          = CLocation(42,42);
-    RATypeInfo[RA_IPOFFSET_1]            = CLocation(43,43);
-    RATypeInfo[RA_IPOFFSET_N]            = CLocation(44,44);
-    RATypeInfo[RA_MINENCAPOFFSET]        = CLocation(44,44);
-    RATypeInfo[RA_GREOFFSET]             = CLocation(45,45);
-    RATypeInfo[RA_L4OFFSET]              = CLocation(46,46);
-    RATypeInfo[RA_NXTHDROFFSET]          = CLocation(47,47);
-    RATypeInfo[RA_FRAMEDESCRIPTOR1]      = CLocation(48,55);
-    RATypeInfo[RA_FRAMEDESCRIPTOR2]      = CLocation(56,63);
-    RATypeInfo[RA_FRAMEDESCRIPTOR2_LOW]  = CLocation(60,63);
-    RATypeInfo[RA_ACTIONDESCRIPTOR]      = CLocation(64,71);
-    RATypeInfo[RA_CCBASE]                = CLocation(72,75);
-    RATypeInfo[RA_KS]                    = CLocation(76,76);
-    RATypeInfo[RA_HPNIA]                 = CLocation(77,79);
-    RATypeInfo[RA_SPERC]                 = CLocation(80,80);
-    RATypeInfo[RA_IPVER]                 = CLocation(85,85);
-    RATypeInfo[RA_IPLENGTH]              = CLocation(86,87);
-    RATypeInfo[RA_ICP]                   = CLocation(90,91);
-    RATypeInfo[RA_ATTR]                  = CLocation(92,92);
-    RATypeInfo[RA_NIA]                   = CLocation(93,95);
-    RATypeInfo[RA_IPV4SA]                = CLocation(96,99);
-    RATypeInfo[RA_IPV4DA]                = CLocation(100,103);
-    RATypeInfo[RA_IPV6SA1]               = CLocation(96,103);
-    RATypeInfo[RA_IPV6SA2]               = CLocation(104,111);
-    RATypeInfo[RA_IPV6DA1]               = CLocation(112,119);
-    RATypeInfo[RA_IPV6DA2]               = CLocation(120,127);
+	RATypeInfo[RA_ETHOFFSET]			 = CLocation(35,35);
+	RATypeInfo[RA_LLC_SNAPOFFSET]		 = CLocation(36,36);
+	RATypeInfo[RA_VLANTCIOFFSET_1]		 = CLocation(37,37);
+	RATypeInfo[RA_VLANTCIOFFSET_N]		 = CLocation(38,38);
+	RATypeInfo[RA_LASTETYPEOFFSET]		 = CLocation(39,39);
+	RATypeInfo[RA_PPPOEOFFSET]			 = CLocation(40,40);
+	RATypeInfo[RA_MPLSOFFSET_1]			 = CLocation(41,41);
+	RATypeInfo[RA_MPLSOFFSET_N]			 = CLocation(42,42);
+	RATypeInfo[RA_ARPOFFSET]			 = CLocation(43,43);
+	RATypeInfo[RA_IPOFFSET_1]			 = CLocation(43,43);
+	RATypeInfo[RA_IPOFFSET_N]			 = CLocation(44,44);
+	RATypeInfo[RA_MINENCAPOFFSET]	     = CLocation(44,44);
+	RATypeInfo[RA_GREOFFSET]			 = CLocation(45,45);
+	RATypeInfo[RA_L4OFFSET]				 = CLocation(46,46);
+	RATypeInfo[RA_GTPOFFSET]			 = CLocation(47,47);
+	RATypeInfo[RA_ESPOFFSET]			 = CLocation(47,47);
+	RATypeInfo[RA_IPSECOFFSET]			 = CLocation(47,47);
+	RATypeInfo[RA_ROUTHDROFFSET1]		 = CLocation(48,48);
+	RATypeInfo[RA_ROUTHDROFFSET2]		 = CLocation(49,49);
+	RATypeInfo[RA_NXTHDROFFSET]			 = CLocation(50,50);
+	RATypeInfo[RA_FRAGOFFSET]			 = CLocation(51,51);
+	RATypeInfo[RA_GROSSRUNNINGSUM]		 = CLocation(52,53);
+	RATypeInfo[RA_RUNNINGSUM]			 = CLocation(54,55);
+	RATypeInfo[RA_PARSEERRCODE]			 = CLocation(56,56);
+	RATypeInfo[RA_SOFTPARSECTX]			 = CLocation(57,63);
+	//Parse Array cont: 0x50
+	RATypeInfo[RA_IPV4SA]                = CLocation(80,83);
+	RATypeInfo[RA_IPV4DA]                = CLocation(84,87);
+	RATypeInfo[RA_IPV6SA1]               = CLocation(80,87);
+	RATypeInfo[RA_IPV6SA2]               = CLocation(88,95);
+	RATypeInfo[RA_IPV6DA1]				 = CLocation(96,103);
+	RATypeInfo[RA_IPV6DA2]               = CLocation(104,111);
+	RATypeInfo[RA_SPERC]				 = CLocation(112,113);
+	RATypeInfo[RA_IPLENGTH]				 = CLocation(114,115);
+	RATypeInfo[RA_ROUTTYPE]				 = CLocation(116,116);
+	RATypeInfo[RA_FDLENGTH]				 = CLocation(123,125);
+	RATypeInfo[RA_PARSEERRSTAT]			 = CLocation(127,127);
+
 }
 
 RA::RA () {}

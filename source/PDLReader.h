@@ -52,6 +52,7 @@ public:
     void parseExecuteLoop  (CExecuteLoop*   executeLoop,   xmlNodePtr pNode );
     void parseExecuteInline(CExecuteInline* executeInline, xmlNodePtr pNode );
     void parseExecuteSwitch(CExecuteSwitch* executeSwitch, xmlNodePtr pNode );
+    void parseExecuteSetresetfaf (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode );
     void parseFormat       (CProtocol* protocol, xmlNodePtr pNode );
     void parseBlock        (CProtocol* protocol, xmlNodePtr pNode );
     void parseFields       (CProtocol* protocol, xmlNodePtr pNode );

@@ -59,7 +59,8 @@ typedef enum OpType {
     OT_REG,
     OT_SHIFT,
     OT_TEXT,
-    OT_VAL
+    OT_VAL,
+    OT_FAF
 } PCodeOpType;
 
 typedef enum Opcode {
@@ -75,6 +76,7 @@ typedef enum Opcode {
     JMP,                 // OT_HXS,         OT_LABEL
     JMP_PROTOCOL_ETH,    // [OT_HXS=1]
     JMP_PROTOCOL_IP,     // [OT_HXS=1]
+	JMP_PROTOCOL_TCPUDP, // [OT_HXS=1]
 	GOSUB,
 	RETURN_SUB,
     STORE_IV_TO_RA,      // OT_OBJ,         OT_VAL
@@ -83,6 +85,10 @@ typedef enum Opcode {
     LOAD_BYTES_PA_TO_WR, // OT_REG,         OT_SHIFT,       OT_OBJ
     LOAD_BITS_FW_TO_WR,  // OT_REG,         OT_SHIFT,       OT_OBJ
     LOAD_BITS_IV_TO_WR,  // OT_REG,         OT_SHIFT,       OT_VAL,     OT_VAL
+	SET_FAF,
+	CLR_FAF,
+	JMP_FAF,
+	GOSUB_FAF,
     ZERO_WR,             // OT_REG
     ADD_WR_WR_TO_WR,     // OT_REG,         OT_REG,         OT_REG
     SUB_WR_WR_TO_WR,     // OT_REG,         OT_REG,         OT_REG
@@ -146,6 +152,13 @@ class CRegOperand : public COperand
 public:
     CReg    reg;
     virtual std::string getOperandName () const;
+};
+
+class CFafOperand : public COperand
+{
+public:
+	CFaf    faf;
+	virtual std::string getOperandName () const;
 };
 
 class CBitOperand : public COperand
@@ -236,6 +249,7 @@ class CInstruction
     /* get info*/
   public:
     std::string getOpcodeName   ();
+	Opcode getOpcode();
 
     /* prepare code */
   private:
@@ -271,12 +285,11 @@ class CCode
     std::string      codeOutput;
     std::ofstream    *asmFile;
     std::ofstream    *codeFile;
-    bool             debugAsm;      //dump the entire asm process
     bool             chksumStored;  //chksumResult is stored in GPR2
     uint8_t          gpr2Used;      //GPR2 is currently live
     /*Process IR*/
   public:
-    CCode() : asmFile(0), codeFile(0), debugAsm(0), chksumStored(0),
+    CCode() : asmFile(0), codeFile(0), chksumStored(0),
               gpr2Used(0) {}
     void createCode (CIR IR);
   private:
@@ -286,8 +299,11 @@ class CCode
     void processIf         (CENode* expression,   CLabel label, CProtocolCode& code);
     void processInline     (std::string data,     CProtocolCode& code);
     void processJump       (CStatement statement, CProtocolCode& code);
+	void processFafJump    (CStatement statement, CProtocolCode& code);
 	void processGosub	   (CStatement statement, CProtocolCode& code);
 	void processRetsub	   (CStatement statement, CProtocolCode& code);
+	void processSetFaf     (CStatement statement, CProtocolCode& code);
+	void processResetFaf   (CStatement statement, CProtocolCode& code);
     void processSwitch     (CENode* expression,   CSwitchTable* switchTable, CProtocolCode& code);
     void processWROperation(CENode* expression,   CProtocolCode& code);
     void processChecksum   (CENode* expression,   CProtocolCode& code);
@@ -306,7 +322,6 @@ class CCode
   public:
     void setDumpCode    (std::string path);
     void setDumpAsm     (std::string path);
-    void setDebugAsm    (bool bool1);
     void dumpCode       ();
     void dumpAsm        ();
 
@@ -323,6 +338,9 @@ class CCode
     static CObjOperand*    newObjOp        (CObject *object1);
     static CRegOperand*    newRegOp        (CReg reg1);
     static CRegOperand*    newRegOp        (RegType type1);
+	static CFafOperand*    newFafOp        (CFaf faf1);
+	static CFafOperand*    newFafOp        (FafType type1);
+	static CFafOperand*    newFafOp        (std::string name);
     static CShiftOperand*  newShiftOp      (bool shiftOp1);
     static CTextOperand*   newTextOp       (std::string text1);
     static CValueOperand*  newValueOp      (uint64_t valueOp1);
@@ -349,6 +367,7 @@ class CCode
     static CInstruction createJMP                   (CHxsOperand*   opA, CLabelOperand* opB);
     static CInstruction createJMP_PROTOCOL_ETH      ();
     static CInstruction createJMP_PROTOCOL_IP       ();
+	static CInstruction createJMP_PROTOCOL_TCPUDP   ();
 	static CInstruction createGOSUB                 (CLabelOperand* opA);
 	static CInstruction createRETURN_SUB			();
     static CInstruction createSTORE_IV_TO_RA        (CObjOperand*   opA, CValueOperand* opB);
@@ -375,6 +394,10 @@ class CCode
     static CInstruction createNOP                   ();
     static CInstruction createInlineInstr           (CTextOperand*  opA);
     static CInstruction createCaseInstr             (Opcode op, uint8_t hxses, std::vector <CLabel> labels);
+	static CInstruction createSET_FAF				(CFafOperand*	opA);
+	static CInstruction createCLR_FAF				(CFafOperand*	opA);
+	static CInstruction createJMP_FAF				(CLabelOperand* opA, CFafOperand*	opB);
+	static CInstruction createGOSUB_FAF				(CLabelOperand* opA, CFafOperand*	opB);
   private:
     void addInstr(CInstruction instr, CProtocolCode& code);
 };

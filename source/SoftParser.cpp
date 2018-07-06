@@ -59,16 +59,17 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
 
     if (genIntermCode)
     {
-        newIR.setDumpIr  (baseName + ".ir");
+        newIR.setDumpIr(baseName + ".ir");
         newCode.setDumpCode(baseName + ".code");
-        newCode.setDumpAsm (baseName + ".asm");
-        newCode.setDebugAsm(1);
+        newCode.setDumpAsm(baseName + ".asm");
         task->dumpSpParsed(baseName + ".parsed");
     }
 
+    newIR.setDebug(false);
+
     /*Parse, create IR and create asm*/
-    newIR.createIR          (task);
-    newCode.createCode      (newIR);
+    newIR.createIR(task);
+    newCode.createCode(newIR);
 
 
     /*assemble*/
@@ -280,6 +281,8 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     protocolsLabels[PT_VLAN]      = "NET_PROT_VLAN";
     protocolsLabels[PT_PPPOE_PPP] = "NET_PROT_PPPOE";
     protocolsLabels[PT_MPLS]      = "NET_PROT_MPLS";
+	protocolsLabels[PT_ARP]		  = "NET_PROT_ARP";
+	protocolsLabels[PT_IP]        = "NET_PROT_IP";
     protocolsLabels[PT_IPV4]      = "NET_PROT_IPV4";
     protocolsLabels[PT_IPV6]      = "NET_PROT_IPV6";
     protocolsLabels[PT_GRE]       = "NET_PROT_GRE";
@@ -292,6 +295,11 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     protocolsLabels[PT_DCCP]      = "NET_PROT_DCCP";
     protocolsLabels[PT_OTHER_L3]  = "NET_PROT_USER_DEFINED_L3";
     protocolsLabels[PT_OTHER_L4]  = "NET_PROT_USER_DEFINED_L4";
+	protocolsLabels[PT_OTHER_L5]  = "NET_PROT_USER_DEFINED_L5";
+	protocolsLabels[PT_GTP]       = "NET_PROT_GTP";
+	protocolsLabels[PT_ESP]       = "NET_PROT_IPSEC_ESP";
+	//TODO: not supported in mc net header net.h:
+	//protocolsLabels[PT_FINAL_SHELL]  = "HEADER_TYPE_FINAL_SHELL";
 
     protocolsLabelsIterator = protocolsLabels.find(type);
     if (protocolsLabelsIterator == protocolsLabels.end())

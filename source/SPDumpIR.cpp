@@ -114,10 +114,15 @@ void CStatement::dumpStatement (std::ofstream &outFile, uint8_t spaces) const
             break;
         case ST_SECTIONEND:
             outFile << std::string(spaces, ' ') << "END_SECTION" ;
-            if (flags.afterSection)
-                outFile << " (after)";
-            else
-                outFile << " (before)";
+			switch (flags.sectionType)
+			{
+			case BEFORE:
+				outFile << " (before)";
+				break;
+			case AFTER:
+				outFile << " (after)";
+				break;
+			}
             outFile << std::endl << std::string(spaces+2, ' ')
                     << "headerSize:" << std::endl;
             expr->dumpExpression(outFile, spaces+2);
@@ -130,6 +135,16 @@ void CStatement::dumpStatement (std::ofstream &outFile, uint8_t spaces) const
 			break;
 		case ST_RETSUB:
 			outFile << std::string(spaces, ' ') << "RETSUB" << std::endl;
+			break;
+		case ST_SETFAF:
+			outFile << std::string(spaces, ' ') << "SET FAF " << text << std::endl;
+			break;
+		case ST_RESETFAF:
+			outFile << std::string(spaces, ' ') << "RESET FAF " << text << std::endl;
+			break;
+		case ST_FAFGOTO:
+			outFile << std::string(spaces, ' ') << "IF FAF " << text << " GOTO "
+					<< label.name << std::endl;
 			break;
     }
     /*if (section.when != "")

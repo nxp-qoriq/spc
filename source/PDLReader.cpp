@@ -553,8 +553,13 @@ CPDLReader::parseExecute( CProtocol* protocol, xmlNodePtr pNode )
         // verify
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"verify" ) )
             CGenericError::printWarning (WARN_UNSUPPORTED, (char*)cur->name);
+        // subroutine
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"subroutine" ) ) {
+			CGenericErrorLine::printWarning("SUBROUTINE not supported: " + WARN_UNEXPECTED_NODE,
+				xmlGetLineNo(cur), (char*)cur->name);
+		}
         // comment
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+		else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
                   !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
         }
         // other
@@ -622,6 +627,19 @@ CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNo
             parseExecuteSwitch (&executeExpression.switchInstr, cur);
             executeSection->executeExpressions.push_back (executeExpression);
         }
+		// gosub
+        else if (!xmlStrcmp( cur->name, (const xmlChar*)"gosub")) {
+
+			CGenericErrorLine::printWarning("SUBROUTINE / GOSUB instruction not supported : " + WARN_UNEXPECTED_NODE,
+				xmlGetLineNo(cur), (char*)cur->name);
+		}
+		// set / reset FAF
+		else if (!xmlStrcmp( cur->name, (const xmlChar*)"set_faf") ||
+				 !xmlStrcmp( cur->name, (const xmlChar*)"reset_faf")) {
+			 CExecuteExpression executeExpression(IT_SETRESETFAF);
+			 parseExecuteSetresetfaf (&executeExpression.setresetfafInstr, cur);
+			 executeSection->executeExpressions.push_back (executeExpression);
+		}
         // comment/description/data/author
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" )     ||
                   !xmlStrcmp( cur->name, (const xmlChar*)"description" ) ||
@@ -679,10 +697,11 @@ CPDLReader::parseExecuteIf( CExecuteIf* executeIf, xmlNodePtr pNode )
 
     executeIf->expr   = getAttr(pNode, "expr" );
     executeIf->line   = xmlGetLineNo(pNode);
+	executeIf->faf   = getAttr(pNode, "faf" );
 
-    checkUnknownAttr(pNode, 1, "expr");
+	checkUnknownAttr(pNode, 2, "expr", "faf");
 
-    if (executeIf->expr == "")
+	if (executeIf->expr == "" && executeIf->faf == "")
         throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeIf->line,
                                 "expr", "if");
 
@@ -904,3 +923,34 @@ CPDLReader::parseExecuteAction( CExecuteAction* executeAction, xmlNodePtr pNode 
                                 "type", "action");
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// CPDLReader::parseExecuteSetresetfaf
+// Process the 'set_faf' & 'reset_faf' nodes of the NetPDL
+/////////////////////////////////////////////////////////////////////////////
+void
+CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode )
+{
+	// Make sure we process the right node
+	if (!xmlStrcmp( pNode->name, (const xmlChar*)"set_faf"))
+	{
+		executeSetresetfaf->set = true;
+	}
+	else if (!xmlStrcmp( pNode->name, (const xmlChar*)"reset_faf"))
+	{
+		executeSetresetfaf->set = false;
+	}
+	else
+	{
+		throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+	}
+
+	executeSetresetfaf->line = xmlGetLineNo(pNode);
+
+	executeSetresetfaf->name = getAttr(pNode, "faf");
+	executeSetresetfaf->faf = !executeSetresetfaf->name.empty();
+
+	checkUnknownAttr(pNode, 1, "faf");
+
+	if (executeSetresetfaf->name == "")
+		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeSetresetfaf->line, "faf");
+}

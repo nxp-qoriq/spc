@@ -77,6 +77,24 @@ void CInstruction::prepareAsm (std::string &asmOutput)
                 asmOutput += ":" + decString;
             }
             break;
+		case SET_FAF:
+			checkError(1, OT_FAF);
+			asmOutput += "SET_FAF " + operands[0]->getOperandName();
+			break;
+		case CLR_FAF:
+			checkError(1, OT_FAF);
+			asmOutput += "CLR_FAF " + operands[0]->getOperandName();
+			break;
+		case JMP_FAF:
+			checkError(2, OT_LABEL, OT_FAF);
+			asmOutput += "JMP " + operands[0]->getOperandName() + " IF "
+					+ operands[1]->getOperandName();
+			break;
+		case GOSUB_FAF:
+			checkError(2, OT_LABEL, OT_FAF);
+			asmOutput += "GOSUB " + operands[0]->getOperandName() + " IF "
+					+ operands[1]->getOperandName();
+			break;
         case ZERO_WR:
             checkError(1, OT_REG);
             asmOutput += "CLR " + operands[0]->getOperandName();
@@ -190,6 +208,10 @@ void CInstruction::prepareAsm (std::string &asmOutput)
             checkError(1, OT_HXS);
             asmOutput += "JMP NXT_IP_PROTO";
             break;
+		case JMP_PROTOCOL_TCPUDP:
+			checkError(1, OT_HXS);
+			asmOutput += "JMP NXT_TCPUDP_PORTS";
+			break;
 		case GOSUB:
 			checkError(1, OT_LABEL);
 			asmOutput += "GOSUB " + operands[0]->getOperandName();
@@ -307,13 +329,6 @@ void CCode::dumpAsm ()
         *asmFile << asmOutput;
     else throw CGenericError (ERR_INTERNAL_SP_ERROR,
                               "Can't dump assembly code");
-}
-
-/*If debugAsm is set we should dump the entire asm process (all the revisions
-and not just the final .asm version*/
-void CCode::setDebugAsm (bool bool1)
-{
-    debugAsm = bool1;
 }
 
 void CCode::dumpCode ()

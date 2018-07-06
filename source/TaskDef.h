@@ -47,10 +47,6 @@
 #include "GenericError.h"
 #include "Utils.h"
 
-#define MAX_CC_KEY 56
-#define MAX_INSERT_SIZE 56 //TODO check max size with driver team
-#define MAX_IPREPLACE_SIZE 256
-
 class CExecuteExpression;
 class CExecuteSection;
 class CProtocol;
@@ -70,6 +66,7 @@ typedef enum ExecuteInstructionType {
 	IT_INLINE,
 	IT_SWITCH,
 	IT_GOSUB,
+	IT_SETRESETFAF
 } ExecuteInstructionType;
 
 typedef enum ExecuteSectionType {
@@ -88,6 +85,8 @@ typedef enum ProtoType {
     PT_VLAN,
     PT_PPPOE_PPP,
     PT_MPLS,
+	PT_ARP,
+	PT_IP,
     PT_IPV4,
     PT_IPV6,
     PT_OTHER_L3,
@@ -100,8 +99,14 @@ typedef enum ProtoType {
     PT_SCTP,
     PT_DCCP,
     PT_OTHER_L4,
+	PT_GTP,
+	PT_ESP,
     PT_NEXT_ETH,
-    PT_NEXT_IP,
+	PT_NEXT_IP,
+	PT_NEXT_TCP,
+    PT_NEXT_UDP,
+	PT_OTHER_L5,
+	PT_FINAL_SHELL,
     PT_RETURN,
     PT_END_PARSE
 } ProtoType;
@@ -222,6 +227,7 @@ class CExecuteIf : public CConfirmCustomExtractor
 {
   public:
     std::string      expr;
+    std::string      faf;
     CExecuteSection  ifTrue;
     CExecuteSection  ifFalse;
     int              line;
@@ -292,6 +298,22 @@ public:
 	virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {};
 };
 
+class CExecuteSetresetfaf : public CConfirmCustomExtractor
+{
+public:
+
+	std::string      name;
+	bool			 faf;
+	bool			 set;
+	int              line;
+
+	CExecuteSetresetfaf  () :                  line(NO_LINE) {}
+	CExecuteSetresetfaf  (bool faf1, std::string name1, bool set1) : faf(faf1), name(name1), set(set1), line(NO_LINE) {}
+	void dumpSetresetfaf (std::ofstream &outFile, uint8_t spaces);
+
+	virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {};
+};
+
 class CExecuteExpression : public CConfirmCustomExtractor
 {
   public:
@@ -303,6 +325,7 @@ class CExecuteExpression : public CConfirmCustomExtractor
     CExecuteInline         inlineInstr;
     CExecuteSwitch         switchInstr;
 	CExecuteGosub		   gosubInstr;
+	CExecuteSetresetfaf	   setresetfafInstr;
 
     CExecuteExpression() {}
     CExecuteExpression(ExecuteInstructionType type1): type(type1) {}

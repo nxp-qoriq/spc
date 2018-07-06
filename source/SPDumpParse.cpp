@@ -78,6 +78,8 @@ void CExecuteSection::dumpSection(std::ofstream &outFile, uint8_t spaces)
             executeExpressions[i].switchInstr.dumpSwitch(outFile, spaces+2);
 		else if (executeExpressions[i].type == IT_GOSUB)
 			executeExpressions[i].gosubInstr.dumpGosub(outFile, spaces+2);
+		else if (executeExpressions[i].type == IT_SETRESETFAF)
+			executeExpressions[i].setresetfafInstr.dumpSetresetfaf(outFile, spaces+2);
     }
 }
 
@@ -122,7 +124,10 @@ void CExecuteCase::dumpCase (std::ofstream &outFile, uint8_t spaces)
 
 void CExecuteIf::dumpIf (std::ofstream &outFile, uint8_t spaces)
 {
-    outFile << std::string(spaces, ' ') << "IF " << expr << std::endl;
+	if (expr != "")
+		outFile << std::string(spaces, ' ') << "IF " << expr << std::endl;
+	else if (faf != "")
+		outFile << std::string(spaces, ' ') << "IF FAF " << faf << std::endl;
     if (ifTrueValid)
         ifTrue.dumpSection(outFile, spaces);
     if (ifFalseValid)
@@ -148,3 +153,15 @@ void CExecuteGosub::dumpGosub (std::ofstream &outFile, uint8_t spaces)
 {
 	outFile << std::string(spaces, ' ') << "GOSUB " << name << std::endl;
 }
+
+void CExecuteSetresetfaf::dumpSetresetfaf (std::ofstream &outFile, uint8_t spaces)
+{
+	if (faf)
+	{
+		if (set)
+			outFile << std::string(spaces, ' ') << "SET FAF " << name << std::endl;
+		else
+			outFile << std::string(spaces, ' ') << "RESET FAF " << name << std::endl;
+	}
+}
+
