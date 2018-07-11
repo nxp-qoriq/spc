@@ -1165,7 +1165,7 @@ void CFaf::init()
 	mapFafInfo[FAF_LLC_SNAP_Error] = "FAF_LLC_SNAP_Error";
 	mapFafInfo[FAF_VLAN_1_Present] = "FAF_VLAN_1_Present";
 	mapFafInfo[FAF_VLAN_n_Present] = "FAF_VLAN_n_Present";
-	mapFafInfo[FAF_CFI] = "FAF_CFI";
+	mapFafInfo[FAF_GRE_Ethernet] = "FAF_GRE_Ethernet";
 	mapFafInfo[FAF_VLAN_Parsing_Error] = "FAF_VLAN_Parsing_Error";
 	mapFafInfo[FAF_PPPoE_PPP_Present] = "FAF_PPPoE_PPP_Present";
 	mapFafInfo[FAF_PPPoE_PPP_Parsing_Error] = "FAF_PPPoE_PPP_Parsing_Error";
@@ -1242,6 +1242,10 @@ void CFaf::init()
 	mapFafInfo[FAF_GTP_Primed_Detected] = "FAF_GTP_Primed_Detected";
 	mapFafInfo[FAF_VLAN_Prio_Detected] = "FAF_VLAN_Prio_Detected";
 	mapFafInfo[FAF_PTP_Detected] = "FAF_PTP_Detected";
+	mapFafInfo[FAF_VXLAN_Present] = "FAF_VXLAN_Present";
+	mapFafInfo[FAF_VXLAN_Parsing_error] = "FAF_VXLAN_Parsing_error";
+	mapFafInfo[FAF_Ethernet_slow_protocol] = "FAF_Ethernet_slow_protocol";
+	mapFafInfo[FAF_IKE_Present] = "FAF_IKE_Present";
 	mapFafInfo[FAF_Reserved] = "FAF_Reserved";
 
 }

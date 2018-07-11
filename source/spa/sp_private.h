@@ -208,17 +208,20 @@
 #define _SP_RETURN_HXS        0x7fe
 #define _SP_END_PARSE         0x7ff
 
-#define _SP_MAX_INSTR_WORDS 992
+#define _SP_MAX_INSTR_WORDS 	992
 
-// Frame Attribute Flag (FAF) codes
-#define _FAF_User_Defined_0                         0
-#define _FAF_User_Defined_1                         1
-#define _FAF_User_Defined_2                         2
-#define _FAF_User_Defined_3                         3
-#define _FAF_User_Defined_4                         4
-#define _FAF_User_Defined_5                         5
-#define _FAF_User_Defined_6                         6
-#define _FAF_User_Defined_7                         7
+
+// Frame Attribute Flag (FAF) codes:
+
+//Frame Attribute Flags 0-95
+#define _FAF_IPv6_Route_Hdr2_Present                0
+#define _FAF_GTP_Primed_Detected					1
+#define _FAF_VLAN_Prio_Detected						2
+#define _FAF_PTP_Detected							3
+#define _FAF_VXLAN_Present							4
+#define _FAF_VXLAN_Parsing_error					5
+#define _FAF_Ethernet_slow_protocol					6
+#define _FAF_IKE_Present							7
 #define _FAF_Shim_Shell_Soft_Parsing_Error          8
 #define _FAF_Parsing_Error                          9
 #define _FAF_Ethernet_MAC_Present                   10
@@ -234,7 +237,7 @@
 #define _FAF_LLC_SNAP_Error                         20
 #define _FAF_VLAN_1_Present                         21
 #define _FAF_VLAN_n_Present                         22
-#define _FAF_CFI                                    23
+#define _FAF_GRE_Ethernet                           23
 #define _FAF_VLAN_Parsing_Error                     24
 #define _FAF_PPPoE_PPP_Present                      25
 #define _FAF_PPPoE_PPP_Parsing_Error                26
@@ -307,11 +310,17 @@
 #define _FAF_Capwap_Data_Detected                   93
 #define _FAF_L5_Soft_Parsing_Error                  94
 #define _FAF_IPv6_Route_Hdr1_Present                95
-#define _FAF_IPv6_Route_Hdr2_Present                96
-#define _FAF_GTP_Primed_Detected					97
-#define _FAF_VLAN_Prio_Detected						98
-#define _FAF_PTP_Detected							99
-#define _FAF_Reserved                               100 // - 111
+
+//FAF Extension
+#define _FAF_User_Defined_0                         96
+#define _FAF_User_Defined_1                         97
+#define _FAF_User_Defined_2                         98
+#define _FAF_User_Defined_3                         99
+#define _FAF_User_Defined_4                         100
+#define _FAF_User_Defined_5                         101
+#define _FAF_User_Defined_6                         102
+#define _FAF_User_Defined_7                         103
+#define _FAF_Reserved                               104
 
 /* ------------------------------------------------------------------------
  * Assembler parser context object.

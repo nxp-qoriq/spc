@@ -84,7 +84,7 @@ typedef enum FafType {
 	FAF_LLC_SNAP_Error,
 	FAF_VLAN_1_Present,
 	FAF_VLAN_n_Present,
-	FAF_CFI,
+	FAF_GRE_Ethernet,
 	FAF_VLAN_Parsing_Error,
 	FAF_PPPoE_PPP_Present,
 	FAF_PPPoE_PPP_Parsing_Error,
@@ -161,6 +161,10 @@ typedef enum FafType {
 	FAF_GTP_Primed_Detected,
 	FAF_VLAN_Prio_Detected,
 	FAF_PTP_Detected,
+	FAF_VXLAN_Present,
+	FAF_VXLAN_Parsing_error,
+	FAF_Ethernet_slow_protocol,
+	FAF_IKE_Present,
 	FAF_Reserved
 } FafType;
 
