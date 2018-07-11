@@ -634,8 +634,8 @@ CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNo
 				xmlGetLineNo(cur), (char*)cur->name);
 		}
 		// set / reset FAF
-		else if (!xmlStrcmp( cur->name, (const xmlChar*)"set_faf") ||
-				 !xmlStrcmp( cur->name, (const xmlChar*)"reset_faf")) {
+		else if (!xmlStrcmp( cur->name, (const xmlChar*)"set") ||
+				 !xmlStrcmp( cur->name, (const xmlChar*)"reset")) {
 			 CExecuteExpression executeExpression(IT_SETRESETFAF);
 			 parseExecuteSetresetfaf (&executeExpression.setresetfafInstr, cur);
 			 executeSection->executeExpressions.push_back (executeExpression);
@@ -925,17 +925,17 @@ CPDLReader::parseExecuteAction( CExecuteAction* executeAction, xmlNodePtr pNode 
 
 /////////////////////////////////////////////////////////////////////////////
 // CPDLReader::parseExecuteSetresetfaf
-// Process the 'set_faf' & 'reset_faf' nodes of the NetPDL
+// Process the 'set' & 'reset' nodes of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
 void
 CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode )
 {
 	// Make sure we process the right node
-	if (!xmlStrcmp( pNode->name, (const xmlChar*)"set_faf"))
+	if (!xmlStrcmp( pNode->name, (const xmlChar*)"set"))
 	{
 		executeSetresetfaf->set = true;
 	}
-	else if (!xmlStrcmp( pNode->name, (const xmlChar*)"reset_faf"))
+	else if (!xmlStrcmp( pNode->name, (const xmlChar*)"reset"))
 	{
 		executeSetresetfaf->set = false;
 	}
