@@ -501,8 +501,7 @@ void CCode::findAndProcessChecksum(CENode* expr, CProtocolCode& code, bool &foun
         {
             processChecksum(expr, code);
             CObject ob = getAndAllocateGPR2(6,7);
-            addInstr(createSTORE_WR_TO_RA(newObjOp(&ob),
-                                          newRegOp(expr->reg)), code);
+            addInstr(createSTORE_WR_TO_RA(newObjOp(&ob), newRegOp(expr->reg)), code);
             found           = 1;
             chksumStored    = 1;
         }
@@ -744,6 +743,40 @@ void CCode::processWROperation (CENode* expr, CProtocolCode& code)
 void CCode::addInstr(CInstruction instr, CProtocolCode& code)
 {
     code.instructions.push_back(instr);
+}
+
+/*----------------------------GPR1 functions----------------------------*/
+CObject CCode::getAndFreeGPR1(uint8_t start, uint8_t end)
+{
+    CObject obj = CObject(OB_RA, CLocation(start,end));
+    freeGPR1(start, end);
+    return obj;
+}
+
+CObject CCode::getAndAllocateGPR1(uint8_t start, uint8_t end, int line)
+{
+    if (GPR1Used(start,end))
+        throw CGenericErrorLine (ERR_COMPLEX_EXPR, line);
+    for (uint8_t i=start; i<= end; i++)
+        gpr1Used |= (1<<i);
+    CObject obj = CObject(OB_RA, CLocation(start,end));
+    return obj;
+}
+
+void CCode::freeGPR1(uint8_t start, uint8_t end)
+{
+    for (uint8_t i=start; i<= end; i++)
+        gpr1Used &= ~(1<<i);
+}
+
+bool CCode::GPR1Used(uint8_t start, uint8_t end)
+{
+    for (uint8_t i=start; i<= end; i++)
+    {
+        if ((gpr1Used >> i) &  1)
+            return 1;
+    }
+    return 0;
 }
 
 /*----------------------------GPR2 functions----------------------------*/

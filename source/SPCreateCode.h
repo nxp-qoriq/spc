@@ -285,12 +285,13 @@ class CCode
     std::string      codeOutput;
     std::ofstream    *asmFile;
     std::ofstream    *codeFile;
+    uint8_t          gpr1Used;
     bool             chksumStored;  //chksumResult is stored in GPR2
     uint8_t          gpr2Used;      //GPR2 is currently live
     /*Process IR*/
   public:
     CCode() : asmFile(0), codeFile(0), chksumStored(0),
-              gpr2Used(0) {}
+    		gpr1Used(0), gpr2Used(0) {}
     void createCode (CIR IR);
   private:
     void processStatement  (CStatement statement, CProtocolCode& code);
@@ -347,6 +348,13 @@ class CCode
     void deleteCode ();
   private:
     void deletePaths();
+
+    /*GPR1 functions*/
+  private:
+    void    freeGPR1          (uint8_t start, uint8_t end);
+    bool    GPR1Used          (uint8_t start, uint8_t end);
+    CObject getAndFreeGPR1    (uint8_t start, uint8_t end);
+    CObject getAndAllocateGPR1(uint8_t start, uint8_t end, int line = NO_LINE);
 
     /*GPR2 functions*/
   private:
