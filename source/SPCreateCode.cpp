@@ -387,6 +387,7 @@ void CCode::processChecksum (CENode* expression, CProtocolCode& code)
     CENode* offsetNode  = expression->dyadic.right->dyadic.left;
     CENode* sizeNode    = expression->dyadic.right->dyadic.right;
 
+    CObject tmpWR     = getAndAllocateGPR1 (0,7);
     CObject size    = getAndAllocateGPR2 (5,5);
     CObject res     = getAndAllocateGPR2 (6,7);
     CObject fw      = CObject (OB_FW, CLocation(0,63));
@@ -414,22 +415,32 @@ void CCode::processChecksum (CENode* expression, CProtocolCode& code)
     /*Start the main loop*/
     addInstr(createLABEL(newLabelOp(label)), code);
     /*OPTION 1: Check if less than 8 bytes are left to load from the FW*/
-    addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR0), newShiftOp(0),
-                                       newObjOp(&size)), code);
+    addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR0), newShiftOp(0), newObjOp(&size)), code);
+
 	addInstr(createLOAD_BITS_IV_TO_WR(newRegOp(R_WR1), newShiftOp(0), newValueOp(7), newValueOp(0)), code);
 	addInstr(createCOMPARE_WORKING_REGS(newLabelOp(label4), newCondOp(CO_GREATER)), code);
 
     addInstr(createZERO_WR(newRegOp(R_WR1)), code);
+    //store WR1 (initial value)
+    addInstr(createSTORE_WR_TO_RA(newObjOp(&tmpWR), newRegOp(R_WR1)), code);
+
     /*Minor loop, load final bytes from FW one at a time*/
     addInstr(createLABEL(newLabelOp(label2)), code);
     // We should place NOPs  before each Load_Bits_FW_to_WR to
     // ensure that the effects of stale instructions are cleaned
     addInstr(createNOP(), code);
+    //restore WR1
+    addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR1), newShiftOp(0),
+                                       newObjOp(&tmpWR)), code);
     addInstr(createLOAD_BITS_FW_TO_WR (newRegOp(R_WR1), newShiftOp(1),
                                        newObjOp(&shortFw)), code);
     addInstr(createSUB_WR_IV_TO_WR(newRegOp(R_WR0), newRegOp(R_WR0),
                                    newValueOp(1)), code);
     addInstr(createADD_SV_TO_WO(newValueOp(1)), code);
+
+    //store WR1 (before using it for compare)
+    addInstr(createSTORE_WR_TO_RA(newObjOp(&tmpWR), newRegOp(R_WR1)), code);
+
     addInstr(createZERO_WR(newRegOp(R_WR1)), code);
 	addInstr(createCOMPARE_WORKING_REGS(newLabelOp(label2), newCondOp(CO_GREATER)), code);
 
@@ -439,15 +450,22 @@ void CCode::processChecksum (CENode* expression, CProtocolCode& code)
                                        newObjOp(&size)), code);
     addInstr(createBITWISE_WR_IV_TO_WR(newRegOp(R_WR0), newRegOp(R_WR0),
                                        newBitOp(BO_AND), newValueOp(1)), code);
+
     addInstr(createZERO_WR(newRegOp(R_WR1)), code);
 	addInstr(createCOMPARE_WORKING_REGS(newLabelOp(label3), newCondOp(CO_EQU)), code);
 
+    //restore WR1
+    addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR1), newShiftOp(0),
+                                       newObjOp(&tmpWR)), code);
     addInstr(createLOAD_BITS_IV_TO_WR(newRegOp(R_WR1), newShiftOp(1),
                                        newValueOp(0), newValueOp(8)), code);
     /*Process the final check sum*/
     addInstr(createLABEL(newLabelOp(label3)), code);
     addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR0), newShiftOp(0),
                                        newObjOp(&res)), code);
+    //restore WR1
+    addInstr(createLOAD_BYTES_RA_TO_WR(newRegOp(R_WR1), newShiftOp(0),
+                                       newObjOp(&tmpWR)), code);
     addInstr(createONES_COMP_WR1_TO_WR0(), code);
     addInstr(createJMP(newHxsOp(0), newLabelOp(label5)), code);
 
@@ -472,6 +490,7 @@ void CCode::processChecksum (CENode* expression, CProtocolCode& code)
     addInstr(createSUB_WR_IV_TO_WR(newRegOp(R_WR0), newRegOp(R_WR0),
                                    newValueOp(8)), code);
     addInstr(createSTORE_WR_TO_RA(newObjOp(&size), newRegOp(R_WR0)), code);
+
     addInstr(createZERO_WR(newRegOp(R_WR1)), code);
 	addInstr(createCOMPARE_WORKING_REGS(newLabelOp(label), newCondOp(CO_GREATER)), code);
 
@@ -485,6 +504,7 @@ void CCode::processChecksum (CENode* expression, CProtocolCode& code)
     addInstr(createLOAD_SV_TO_WO(newValueOp(0)), code);
 
     expression->reg.type = R_WR0;
+    freeGPR1(0,7);
     freeGPR2(5,7);
 }
 
