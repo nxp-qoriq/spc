@@ -38,7 +38,7 @@ extern "C"
 //include mc net header: /linux/drivers/staging/fsl-mc/include/net.h
 #include <net.h>
 
-#define MAX_SP_CODE_SIZE      		0x7C0
+#define MAX_SP_CODE_SIZE      		0xFBC //4028 bytes
 
 #define PRS_NUM_OF_HDRS                      16                  /**< Number of headers supported by HW parser */
 #define PRS_NUM_OF_LABELS                    32                  /**< Maximum number of SW parser labels */

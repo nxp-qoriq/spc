@@ -47,10 +47,9 @@
 /* File type for SP. (uses ASCII for SP) */
 #define SP_FILE_TYPE 0x50455350
 
-#define SP_PARSE_PROGRAM_DEFAULT_BASE_ADDRESS 0x20
-#define SP_PARSE_PROGRAM_MIN_BASE_ADDRESS 0x20
-
-#define SP_PARSE_PROGRAM_MAX_BASE_ADDRESS 0x3ff
+#define SP_PARSE_PROGRAM_DEFAULT_BASE_ADDRESS 	0x20
+#define SP_PARSE_PROGRAM_MIN_BASE_ADDRESS 		0x20
+#define SP_PARSE_PROGRAM_MAX_BASE_ADDRESS 		0x7ff
 
 /* --------------------------------------------------------------------------
  * Define error codes.

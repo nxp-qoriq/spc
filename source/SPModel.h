@@ -36,8 +36,6 @@
 
 #include "spc.h"
 
-const unsigned int MAX_CODE_SIZE = MAX_SP_CODE_SIZE;
-
 
 // Forward declarations
 class CTaskDef;
@@ -62,7 +60,7 @@ public:
 public:
 
     t_PrsSwParams 		swPrs;
-    unsigned char      spCode[MAX_CODE_SIZE];
+    unsigned char      spCode[MAX_SP_CODE_SIZE];
 
 private:
     void     createSoftParse( const CTaskDef* pTaskDef );

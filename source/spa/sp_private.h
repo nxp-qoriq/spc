@@ -51,7 +51,7 @@
 #define _SP_PROG_COUNTER_MASK 	0xffff
 #define _SP_GOSUB_FLAG 			0x8000
 #define _SP_RELATIVE_FLAG 		0x4000
-#define _SP_MAX_ABS_PROG_CTR 	0x7ff
+#define _SP_MAX_ABS_PROG_CTR 	SP_PARSE_PROGRAM_MAX_BASE_ADDRESS
 
 /* 
  * Instruction code strings

@@ -399,7 +399,7 @@ public:
 };
 
 const int ASSEMBLER_BASE = 0x20;
-const int CODE_SIZE      = 0x7C0;
+const int CODE_SIZE      = 0xFBC; //4028 bytes
 
 class CSoftParseResult
 {
@@ -411,7 +411,7 @@ public:
                                                              TRUE to override any existing code.*/
     uint32_t                 size;                       /**< SW parser code size */
     uint16_t                 base;                       /**< SW parser base (in instruction counts!
-                                                             muat be larger than 0x20)*/
+                                                             must be larger than 0x20)*/
     uint8_t                  p_Code[CODE_SIZE];          /**< SW parser code */
     uint32_t                 swPrsDataParams[16];
                                                          /**< SW parser data (parameters) */
@@ -444,8 +444,8 @@ class CTaskDef
     std::string pcdcreator;
     std::string pcddate;
 
-    std::vector< CProtocol >                 protocols;
-    CSoftParseResult                         spr;
+    std::vector< CProtocol>      protocols;
+    CSoftParseResult             spr;
 
   public:
     CTaskDef();
