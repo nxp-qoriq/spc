@@ -1686,7 +1686,6 @@
 	</format>	
 </protocol>
 
-
 <protocol name="ipsec_esp" longname="IPSec ESP" description="IP Encapsulating Security Payload  RFC 4303" >
 	<format>
 		<fields>
@@ -1697,5 +1696,75 @@
 	</format>	
 </protocol>
 
-</netpdl>
+<protocol name="arp" longname="ARP (Address Resolution Protocol)">
+	<format>
+		<fields>
+			<field type="fixed" name="hType" longname="Hardware type" size="2"/>
+			<field type="fixed" name="pType" longname="Protocol type" size="2"/>
+			<field type="fixed" name="hLen" longname="Hardware address length" size="1"/>
+			<field type="fixed" name="pLen" longname="Protocol address length" size="1"/>
+			<field type="fixed" name="op" longname="Operation code" size="2"/>
+			<field type="fixed" name="sHwAddr" longname="Sender MAC address" size="6"/>
+			<field type="fixed" name="sIPAddr" longname="Sender IP address" size="4"/>
+			<field type="fixed" name="dHwAddr" longname="Destination MAC address" size="6"/>
+			<field type="fixed" name="dIPAddr" longname="Destination IP address" size="4"/>
+		</fields>
+	</format>
+</protocol>
 
+<protocol name="gtpu" longname="GTP-U" prevproto="udp">
+	<format>
+		<fields>
+			<field type="bit" name="version" mask="0xE0" size="1" />
+			<field type="bit" name="pt" mask="0x80" size="1" />
+			<field type="bit" name="flags" mask="0x07" size="1" />
+			<field type="fixed" name="mtype" size="1" longname="message type"/>
+			<field type="fixed" name="length" size="2" />
+			<field type="fixed" name="teid" size="4" />
+			<field type="fixed" name="snum " size="2" longname="sequence number"/>
+			<field type="fixed" name="npdunum" size="1" longname="N-PDU number"/>
+			<field type="fixed" name="next" size="1" longname="Next ext header type"/>
+		</fields>
+	</format>
+	
+	<execute-code>
+	<!-- Check that UDP port is 2152 -->
+		<before confirm="yes">
+			<if expr="udp.dport == 2152">
+				<if-true>
+				</if-true>
+				<if-false>
+					<!-- Confirms UDP layer and exits-->
+					<action type="exit" confirm="yes" advance="no" nextproto="return"/>
+				</if-false>
+			</if>
+		</before>
+		
+		<!-- Done after UDP layer is confirmed-->
+		<!--Check version and calculate length-->
+		<after confirm="no">
+			<if expr="version == 1">
+				<if-true>
+					<assign-variable name="$shimoffset_1" value="$NxtHdrOffset"/>
+				</if-true>
+				<if-false>
+					<assign-variable name="$ShimR" value="0x22+1"/>
+					<action type="exit" confirm="no" confirmcustom="no" nextproto="none"/>
+				</if-false>
+			</if>
+
+			<if expr="flags != 0">
+				<if-true>
+					<assign-variable name="$NxtHdrOffset" value="$shimoffset_1+12"/>
+				</if-true>
+				<if-false>
+					<assign-variable name="$NxtHdrOffset" value="$shimoffset_1+8"/>
+				</if-false>
+			</if>
+
+			<action type="exit" confirm="no" confirmcustom="shim1" nextproto="none"/>
+		</after>
+	</execute-code>
+</protocol>
+
+</netpdl>
