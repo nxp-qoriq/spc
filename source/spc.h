@@ -38,9 +38,12 @@ extern "C"
 //include mc net header: /linux/drivers/staging/fsl-mc/include/net.h
 #include <net.h>
 
-#define MAX_SP_CODE_SIZE      		0xFBC //4028 bytes
+#define SP_ASSEMBLER_BASE_COUNT 			0x20				/**< Soft Parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20 */
+#define SP_ASSEMBLER_BASE_ADDRESS 			(2 * SP_ASSEMBLER_BASE_COUNT)	/**< Soft Parser base address in bytes: must be larger than 0x40 */
+#define MAX_SP_CODE_SIZE      				0xFBC 				 /**< 4028 bytes */
 
 #define PRS_NUM_OF_HDRS                      16                  /**< Number of headers supported by HW parser */
+#define PRS_PARAM_SIZE                       64                  /**< Size in bytes of parameters area */
 #define PRS_NUM_OF_LABELS                    32                  /**< Maximum number of SW parser labels */
 
 /**************************************************************************//**
@@ -68,11 +71,11 @@ typedef struct t_PrsSwParams {
                                                              was loaded to this address, including
                                                              internal patches.
                                                              TRUE to override any existing code.*/
-    uint32_t                size;                       /**< SW parser code size */
-    uint16_t                base;                       /**< SW parser base (in instruction counts!
-                                                             must be larger than 0x20)*/
+    uint32_t                size;                       /**< SW parser code size in bytes */
+    uint16_t                base;                       /**< SW parser base in bytes
+                                                             must be larger than 0x40*/
     uint8_t                 *p_Code;                    /**< SW parser code */
-    uint32_t                swPrsDataParams[PRS_NUM_OF_HDRS];
+    uint8_t                 swPrsDataParams[PRS_PARAM_SIZE];
                                                         /**< SW parser data (parameters) */
     uint8_t                 numOfLabels;                /**< Number of labels for SW parser. */
     t_PrsLabelParams   		labelsTable[PRS_NUM_OF_LABELS];

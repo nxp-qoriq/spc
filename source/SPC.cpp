@@ -50,7 +50,7 @@
 
 #include <cstdlib>
 
-spc_model_t model      = {0};
+spc_model_t model = { 0 };
 
 
 void set_log_level( std::string log_level_name )
@@ -111,44 +111,42 @@ int main( int argc, char* argv[] )
         // Define the command line object.
         TCLAP::CmdLine cmd( "Soft Parser Configuration Tool", ' ', SPC_VERSION );
 
-        TCLAP::ValueArg<std::string> swOffset( "t", "sp_offset",
-            "Soft Parser generated code base address", false,
-            "0x20", "offset" );
-        cmd.add( swOffset );
+		TCLAP::ValueArg<std::string> swOffset("b", "offset",
+				"Soft Parser generated code base address", false, "0x40",
+				"offset");
+		cmd.add(swOffset);
 
+		TCLAP::ValueArg<std::string> log_level("l", "log_level",
+				"Log level: none, err, warn, info, dbg1, dbg2, dbg3", false,
+				"info", "level");
+		cmd.add(log_level);
 
-        TCLAP::ValueArg<std::string> log_level( "l", "log_level",
-            "Log level: none, err, warn, info, dbg1, dbg2, dbg3",
-            false, "info", "level" );
-        cmd.add( log_level );
-
-        TCLAP::ValueArg<std::string> nameSP( "s", "custom_protocol",
-            "Custom protocol file name", false,
-            "nodefault", "custom_protocol_file" );
-        cmd.add( nameSP);
+		TCLAP::ValueArg<std::string> nameSP("s", "soft_parser",
+				"Custom protocol file name", false, "nodefault",
+				"custom_protocol_file");
+		cmd.add(nameSP);
 
 #ifdef WIN32
-        TCLAP::ValueArg<std::string> namePDL( "d", "pdl",
-            "PDL file name", false,
-            appDir + "/etc/spc/config/hxs_pdl_v3.xml", "pdl_file" );
+		TCLAP::ValueArg<std::string> namePDL( "d", "pdl",
+				"PDL file name", false,
+				appDir + "/etc/spc/config/hxs_pdl_v3.xml", "pdl_file" );
 #else
-        TCLAP::ValueArg<std::string> namePDL( "d", "pdl",
-            "PDL file name", false,
-            "/etc/spc/config/hxs_pdl_v3.xml", "pdl_file" );
+		TCLAP::ValueArg<std::string> namePDL("d", "pdl", "PDL file name", false,
+				"/etc/spc/config/hxs_pdl_v3.xml", "pdl_file");
 #endif
-        cmd.add( namePDL );
+		cmd.add(namePDL);
 
-        TCLAP::SwitchArg interm_code( "i", "interm",
-            "Generate intermediate code" );
-        cmd.add( interm_code );
+		TCLAP::SwitchArg interm_code("i", "interm",
+				"Generate intermediate code");
+		cmd.add(interm_code);
 
-        cmd.parse( argc, argv );
+		cmd.parse(argc, argv);
 
-        set_log_level( log_level.getValue() );
+		set_log_level(log_level.getValue());
 
-        // Check args
-        if (!nameSP.isSet())
-            throw CGenericError(ERR_SP_REQUIRED);
+		// Check args
+		if (!nameSP.isSet())
+			throw CGenericError(ERR_SP_REQUIRED);
 
         int ret = spc_compile(&model,
                     namePDL.getValue().c_str(),

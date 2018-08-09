@@ -68,47 +68,44 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
 {
     const CSoftParseResult& taskSpr = pTaskDef->spr;
 
-    if (taskSpr.softParseEnabled)
-    {
-        swPrs.override    = TRUE;
-        swPrs.size        = taskSpr.size;
-        swPrs.base        = taskSpr.base;
-        swPrs.numOfLabels = taskSpr.numOfLabels;
-        swPrs.p_Code      = spCode;
+	swPrs.override    = TRUE;
+	swPrs.size        = taskSpr.size;
+	swPrs.base        = taskSpr.base;
+	swPrs.numOfLabels = taskSpr.numOfLabels;
+	swPrs.p_Code      = spCode;
 
-        // Copy SP code
-        unsigned int i, j;
-        memset( spCode, 0, CODE_SIZE );
-        for ( i = 2*( taskSpr.base - ASSEMBLER_BASE ), j = 0; i < CODE_SIZE - 4; ++i, ++j ) {
-            spCode[j] = taskSpr.p_Code[i];
-        }
+	// Copy SP code
+	unsigned int i, j;
+	memset( spCode, 0, CODE_SIZE );
+	for ( i = ( taskSpr.base - ASSEMBLER_BASE ), j = 0; i < CODE_SIZE - 4; ++i, ++j ) {
+		spCode[j] = taskSpr.p_Code[i];
+	}
 
-        // Copy SP parameters
-        for ( i = 0; i < PRS_NUM_OF_HDRS; ++i ) {
-            swPrs.swPrsDataParams[i] = 0;
-        }
+	// Copy SP parameters
+	for ( i = 0; i < PRS_PARAM_SIZE; ++i ) {
+		swPrs.swPrsDataParams[i] = 0;
+	}
 
-        // Copy SP label info
-        for ( i = 0; i < swPrs.numOfLabels; ++i ) {
-            swPrs.labelsTable[i].indexPerHdr =
-                taskSpr.labelsTable[i].indexPerHdr;
-            swPrs.labelsTable[i].instructionOffset =
-                taskSpr.labelsTable[i].position;
-            swPrs.labelsTable[i].hdr =
-            		getHeaderType(taskSpr.labelsTable[i].prevNames[0]);
-            if ( swPrs.labelsTable[i].hdr == NET_PROT_NONE ) {
-                std::string shim_protocol =
-                    pTaskDef->getShimNoFromCustom( taskSpr.labelsTable[i].prevNames[0] );
-                if ( !shim_protocol.empty() ) { // Shim header is empty if custom protocol is not found
-                    swPrs.labelsTable[i].hdr = getHeaderType( shim_protocol );
-                }
-                else {
-                    // Header type NET_PROT_NONE is not accepted as a valid value
-                    throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
-                }
-            }
-        }
-    }
+	// Copy SP label info
+	for ( i = 0; i < swPrs.numOfLabels; ++i ) {
+		swPrs.labelsTable[i].indexPerHdr =
+			taskSpr.labelsTable[i].indexPerHdr;
+		swPrs.labelsTable[i].instructionOffset =
+			taskSpr.labelsTable[i].position;
+		swPrs.labelsTable[i].hdr =
+				getHeaderType(taskSpr.labelsTable[i].prevNames[0]);
+		if ( swPrs.labelsTable[i].hdr == NET_PROT_NONE ) {
+			std::string shim_protocol =
+				pTaskDef->getShimNoFromCustom( taskSpr.labelsTable[i].prevNames[0] );
+			if ( !shim_protocol.empty() ) { // Shim header is empty if custom protocol is not found
+				swPrs.labelsTable[i].hdr = getHeaderType( shim_protocol );
+			}
+			else {
+				// Header type NET_PROT_NONE is not accepted as a valid value
+				throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
+			}
+		}
+	}
 }
 
 

@@ -163,11 +163,15 @@ CPDLReader::parseNetPDL( std::string filename )
     // Parse children nodes
     cur = cur->xmlChildrenNode;
     while ( 0 != cur ) {
-        // protocol
+    	// protocol
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"protocol" ) ) {
             CProtocol protocol;
             parseProtocol( &protocol, cur );
             task->protocols.push_back( protocol );
+        }
+        //soc
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"soc" ) ) {
+        	parseSoc(cur);
         }
         // visualization
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"visualization" ) ) {
@@ -220,6 +224,11 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
     checkUnknownAttr(pNode, 6, "name", "longname", "showsumtemplate",
                                "comment", "description", "prevproto");
 
+    if (strlen(protocol->name.c_str()) > 8) {
+		CGenericErrorLine::printWarning("Protocol name is too long (maximum limit is 8 characters) : " + WARN_UNEXPECTED_NODE,
+				xmlGetLineNo(pNode), (char*)pNode->name );
+    }
+
     // In softparse get prevproto
     if (getSoftParse())
     {
@@ -259,6 +268,10 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
         // format
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"format" ) ) {
             parseFormat( protocol, cur );
+        }
+        // device
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"device" ) ) {
+            parseDevice( protocol, cur );
         }
         // encapsulation
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"encapsulation" ) ) {
@@ -516,7 +529,6 @@ CPDLReader::parseField( CField* field, xmlNodePtr pNode )
 
     LOG( DBG1 ) << ind(-2) << "Done" << std::endl;
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 // CPDLReader::parseExecute
@@ -953,4 +965,109 @@ CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,
 
 	if (executeSetresetfaf->name == "")
 		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeSetresetfaf->line, "faf");
+}
+
+void CPDLReader::parseSoc(xmlNodePtr pNode)
+{
+    // Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"soc" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    LOG( DBG1 ) << ind(2) << "Parsing of XML node 'soc' named: '"
+                << getAttr( pNode, "name" )
+                << "' ... " << std::endl;
+
+    // Get known attributes
+    task->soc_name = getAttr(pNode, "name");
+    task->soc_rev = getAttr(pNode, "rev");
+
+    checkUnknownAttr(pNode, 2, "name", "rev");
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// CPDLReader::parseDevice
+// Process the 'device' node of the NetPDL
+/////////////////////////////////////////////////////////////////////////////
+void CPDLReader::parseDevice( CProtocol* protocol, xmlNodePtr pNode )
+{
+    // Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"device" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    checkUnknownAttr(pNode, 0);
+
+    // Parse children nodes
+    xmlNodePtr cur = pNode->xmlChildrenNode;
+    while ( 0 != cur ) {
+        // memory
+        if ( !xmlStrcmp( cur->name, (const xmlChar*)"memory" ) ) {
+        	parseMemory( protocol, cur );
+        }
+        // hw-accel
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"hw-accel" ) ) {
+        	parseHwAccel( protocol, cur );
+        }
+        // parameter
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameter" ) ) {
+        	parseParameter( protocol, cur );
+        }
+        // other
+        else {
+            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
+                                          xmlGetLineNo(cur), (char*)cur->name);
+        }
+
+        cur = cur->next;
+    }
+}
+
+void CPDLReader::parseMemory(CProtocol* protocol, xmlNodePtr pNode)
+{
+	// Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"memory" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    checkUnknownAttr(pNode, 2, "offset", "entrypoint");
+
+    std::string value;
+
+    value = stripBlanks(getAttr(pNode, "offset"));
+    if (value.compare("auto") == 0) {
+    	protocol->offset = 0;
+    	protocol->bValidOffset = false;
+    }
+    else {
+    	protocol->offset = strtol(value.c_str(), NULL, 16);
+    	protocol->bValidOffset = true;
+    }
+
+    value = stripBlanks(getAttr(pNode, "entrypoint"));
+    if (value.compare("auto") == 0) {
+    	protocol->entrypoint = 0;
+    	protocol->bValidEntrypoint = false;
+    }
+    else {
+    	protocol->entrypoint = strtol(value.c_str(), NULL, 16);
+    	protocol->bValidEntrypoint = true;
+    }
+}
+
+void CPDLReader::parseHwAccel(CProtocol* protocol, xmlNodePtr pNode)
+{
+	// Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"hw-accel" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    std::string value = stripBlanks((const char*)pNode->children->content);
+
+    protocol->hw_accel.push_back(value);
+}
+
+void CPDLReader::parseParameter(CProtocol* protocol, xmlNodePtr pNode)
+{
+
 }

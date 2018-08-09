@@ -29,18 +29,30 @@
 #include "SoftParser.h"
 #include "logger.hpp"
 
+using namespace logger;
 using namespace std;
 
 
-
+/**
+ * softparser main routine
+ *
+ * 	@task: Task data definition
+ * 	@filePath: Soft Parser XML file
+ * 	@baseAddress: Soft Parser base address in bytes: must be larger than 0x40
+ * 	@genIntermCode: Generate intermediate code
+ *
+ */
 void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, bool genIntermCode)
 {
     CIR               newIR;
     CCode             newCode;
-    std::string       fileNoExt, baseName, dumpPath;
-    std::string       headerPath, binaryPath;
+    std::string       fileNoExt, baseName;
     unsigned char     binary1[CODE_SIZE] = {0};
     sp_label_list_t *labels, *labelsIter;
+
+    //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
+    //baseAddress must be 4 bytes aligned (so it is divisible by 2)
+    int spBase = baseAddress / 2;
 
     /*init tables*/
     RA::Instance().initRA();
@@ -50,12 +62,6 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     fileNoExt  = filePath.substr(0, pos);
     pos = fileNoExt.find_last_of("/\\");
     baseName   = fileNoExt.substr(pos + 1, fileNoExt.length() - pos - 1);
-
-    dumpPath    = baseName + ".dump";
-    //headerPath  = "softparse.h";
-	//binaryPath  = "softparse.bin";
-    headerPath  = baseName + ".h";
-	binaryPath  = baseName + ".bin";
 
     if (genIntermCode)
     {
@@ -71,42 +77,43 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     newIR.createIR(task);
     newCode.createCode(newIR);
 
-
     /*assemble*/
     bool debug = LOG_GET_LEVEL() >= logger::DBG1;
-    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug, baseAddress);
+    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug, spBase);
 
     /*return result*/
     std::vector <CExtension> extns;
     createExtensions(extns, newCode, labels);
-    task->spr.setEnable(1);
+
+    task->spr.setTask(task);
     task->spr.setBaseAddresss(baseAddress);
     task->spr.setBinary(binary1, sizeof(binary1));
     task->spr.setExtensions(extns);
     task->spr.setSize(actualCodeSize);
 
-    task->spr.dumpHeader(headerPath);
-	task->spr.dumpBinary(binaryPath);
+    task->spr.dumpHeader(baseName + ".h");
+	task->spr.dumpBinary(baseName + ".bin");
+	task->spr.dumpBlob(baseName + ".spb");
 
     /* Free memory*/
     while (labels)
     {
-        labelsIter  = labels->next_p;
+        labelsIter = labels->next_p;
         free (labels->name);
         free (labels);
-        labels      = labelsIter;
+        labels = labelsIter;
     }
     newIR.deleteIR();
     task->deleteExecute();
     newCode.deleteCode();
 }
 
-unsigned int assemble (char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int baseAddress)
+unsigned int assemble (char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int spBase)
 {
 	sp_label_list_t *localLabels = NULL;
     sp_assembler_options_t asmOptions;
     asmOptions.debug_level = sp_debug_none_e;
-    asmOptions.program_space_base_address = baseAddress;
+    asmOptions.program_space_base_address = spBase;
     asmOptions.suppress_warnings = 0;
     asmOptions.warnings_are_errors = 0;
 
@@ -147,6 +154,7 @@ void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list
             {
                 CExtension extension (code.protocolsCode[i].protocol.prevType,
                                       code.protocolsCode[i].protocol.prevproto,
+                                      code.protocolsCode[i].protocol,
                                       labelsIter->byte_position);
                 extns.push_back(extension);
                 break;
@@ -158,21 +166,36 @@ void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list
     }
 }
 
+/*
+   Detect CPU Endianness
+   returns 1 if CPU is LE, 0 in case of BE
+*/
+int detectEndianness()
+{
+	unsigned int x = 1;
+	char *c = (char*)&x;
+	return (int)*c;
+}
+
+CSoftParseResult::CSoftParseResult()
+{
+	cpuLE = detectEndianness();
+}
+
+void CSoftParseResult::setTask(CTaskDef *taskdef)
+{
+	task = taskdef;
+}
+
 void CSoftParseResult::setBinary(const uint8_t binary1[], const uint32_t size)
 {
-    for (unsigned int i=0; i<size; i++)
+    for (unsigned int i = 0; i < size; i++)
         this->p_Code[i] = binary1[i];
-
 }
 
-void CSoftParseResult::setBaseAddresss(const uint16_t baseAddress1)
+void CSoftParseResult::setBaseAddresss(const uint16_t baseAddress)
 {
-    this->base = baseAddress1;
-}
-
-void CSoftParseResult::setEnable(const bool val)
-{
-    this->softParseEnabled = 1;
+    this->base = baseAddress;
 }
 
 void CSoftParseResult::setSize(const uint32_t size1)
@@ -196,7 +219,6 @@ void CSoftParseResult::setExtensions(const std::vector <CExtension> extns)
             this->numOfLabels++;
         }
     }
-//    this->numOfLabels = extns.size();
 }
 
 void CSoftParseResult::dumpHeader(std::string path) const
@@ -210,15 +232,15 @@ void CSoftParseResult::dumpHeader(std::string path) const
     << endl  << "{                                                          \\"
     << endl  << "    TRUE,                               /*Override*/       \\"
     << endl  << "    " << size
-             << ",                               /*Size*/           \\"
+             << ",                               /*Size (in bytes)*/           \\"
     << endl  << "    " << "0x" << std::hex << base
-             << ",                               /*Base*/           \\"
+             << ",                               /*Base (in bytes)*/           \\"
     << endl  << "    (uint8_t *)&(uint8_t[]){            /*Code*/           \\"
     << endl;
 
-    for (j=0, i=2*(base-ASSEMBLER_BASE); ( i < CODE_SIZE-4 ) && ( j < size ); i++, j++)
+    for (j=0, i = (base - ASSEMBLER_BASE); ( i < CODE_SIZE - 4 ) && ( j < size ); i++, j++)
     {
-        if (j%10 == 0 || i==2*(base-ASSEMBLER_BASE))
+        if (j%10 == 0 || i == (base - ASSEMBLER_BASE))
             dumpFile << "        ";
         dumpFile << "0x";
         if (p_Code[i]<0x10)
@@ -231,7 +253,10 @@ void CSoftParseResult::dumpHeader(std::string path) const
     }
 
     dumpFile << "    },                                                     \\"
-    << endl  << "    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},  /*swPrsParams*/    \\"
+    << endl  << "    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /*swPrsParams*/    \\"
+    << endl  << "     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /*swPrsParams*/    \\"
+    << endl  << "     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /*swPrsParams*/    \\"
+    << endl  << "     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},  /*swPrsParams*/    \\"
     << endl  << "    " << (int)numOfLabels
              <<      ",                                  /*numOfLabels*/    \\"
     << endl  << "    {                                                      \\"
@@ -262,7 +287,7 @@ void CSoftParseResult::dumpBinary(std::string path) const
     dumpFile.open(path.c_str(), std::ios::out | std::ios::binary);
 	unsigned int i,j;
 
-    for (j=0, i=2*(base-ASSEMBLER_BASE); ( i < CODE_SIZE-4 ) && ( j < size ); i++, j++)
+    for (j=0, i = (base - ASSEMBLER_BASE); ( i < CODE_SIZE - 4 ) && ( j < size ); i++, j++)
     {
         dumpFile.write((char*)&p_Code[i], 1);
     }
@@ -307,3 +332,502 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     else
         return protocolsLabels[type];
 }
+
+//----------------------------------------------------------------------
+//    Blob generation
+
+/* BLOB magic number */
+#define BLOB_MAGIC_ID			0x53504243	/* SPBC */
+#define BLOB_VER				0x01000000
+
+/*
+Bit 31: load to WRIOP INGRESS parser memory
+Bit 30: load to WRIOP EGRESS parser memory
+Bit 29: load to AIOP parser memory as ingress soft parser
+Bit 28: load to AIOP parser memory as egress soft parser
+ */
+#define LOAD_IN_WRIOP_INGRESS_PARSER		0x80000000
+#define LOAD_IN_WRIOP_EGRESS_PARSER			0x40000000
+#define LOAD_IN_AIOP_INGRESS_PARSER			0x20000000
+#define LOAD_IN_AIOP_EGRESS_PARSER			0x10000000
+
+
+/* Profile configuration */
+#define ENABLE_ON_WRIOP_INGRESS		0x80
+#define ENABLE_ON_WRIOP_EGRESS		0x40
+#define ENABLE_ON_AIOP_INGRESS		0x20
+#define ENABLE_ON_AIOP_EGRESS		0x10
+
+
+//TODO: update to latest doc
+#define BLOB_BASE_PROTO_ETHERNET		0x00000001
+#define BLOB_BASE_PROTO_LLC_SNAP		0x00000002
+#define BLOB_BASE_PROTO_VLAN			0x00000004
+#define BLOB_BASE_PROTO_PPPoE_PPP		0x00000008
+#define BLOB_BASE_PROTO_MPLS			0x00000010
+#define BLOB_BASE_PROTO_ARP				0x00000020
+#define BLOB_BASE_PROTO_IP				0x00000040
+#define BLOB_BASE_PROTO_IPv4			0x00000080
+#define BLOB_BASE_PROTO_IPv6			0x00000100
+#define BLOB_BASE_PROTO_GRE				0x00000200
+#define BLOB_BASE_PROTO_MINENC			0x00000400
+#define BLOB_BASE_PROTO_OTHER_LAYER_3	0x00000800
+#define BLOB_BASE_PROTO_TCP				0x00001000
+#define BLOB_BASE_PROTO_UDP				0x00002000
+#define BLOB_BASE_PROTO_IPSEC			0x00004000
+#define BLOB_BASE_PROTO_SCTP			0x00008000
+#define BLOB_BASE_PROTO_DCCP			0x00010000
+#define BLOB_BASE_PROTO_OTHER_LAYER_4	0x00020000
+#define BLOB_BASE_PROTO_GTP				0x00040000
+#define BLOB_BASE_PROTO_ESP				0x00080000
+#define BLOB_BASE_PROTO_VxLAN			0x00100000
+#define BLOB_BASE_PROTO_LAYER_5			0x00200000
+#define BLOB_BASE_PROTO_FINAL_HEADER	0x00400000
+
+//TODO
+//0x80: 1st header in frame
+//0x81: Called from another SP
+
+
+
+static inline uint16_t SwapUint16(uint16_t val)
+{
+    return (uint16_t)(((val & 0x00FF) <<  8) |
+                      ((val & 0xFF00) >>  8));
+}
+
+static inline uint32_t SwapUint32(uint32_t val)
+{
+    return (uint32_t)(((val & 0x000000FF) << 24) |
+                      ((val & 0x0000FF00) <<  8) |
+                      ((val & 0x00FF0000) >>  8) |
+                      ((val & 0xFF000000) >> 24));
+}
+
+uint16_t CSoftParseResult::cpu_to_le16(uint16_t val16)
+{
+	if (cpuLE)
+		return val16;
+	return SwapUint16(val16);
+}
+
+uint32_t CSoftParseResult::cpu_to_le32(uint32_t val32)
+{
+	if (cpuLE)
+		return val32;
+	return SwapUint32(val32);
+}
+
+void CSoftParseResult::blob_write_cpu_to_le16(std::ofstream &dumpFile, uint16_t val16)
+{
+	uint16_t le16 = cpu_to_le16(val16);
+	dumpFile.write((char*)&le16, 2);
+}
+
+void CSoftParseResult::blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32)
+{
+	uint32_t le32 = cpu_to_le32(val32);
+	dumpFile.write((char*)&le32, 4);
+}
+
+void CSoftParseResult::blob_write8(std::ofstream &dumpFile, uint8_t val)
+{
+	dumpFile.write((char*)&val, 1);
+}
+
+uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
+{
+	uint32_t base_proto = 0;
+
+	//TODO: update protocols
+	switch (prevType)
+	{
+	case PT_ETH:
+		base_proto = BLOB_BASE_PROTO_ETHERNET;
+		break;
+	case PT_LLC_SNAP:
+		base_proto = BLOB_BASE_PROTO_LLC_SNAP;
+		break;
+	case PT_VLAN:
+		base_proto = BLOB_BASE_PROTO_VLAN;
+		break;
+	case PT_PPPOE_PPP:
+		base_proto = BLOB_BASE_PROTO_PPPoE_PPP;
+		break;
+	case PT_MPLS:
+		base_proto = BLOB_BASE_PROTO_MPLS;
+		break;
+	case PT_ARP:
+		base_proto = BLOB_BASE_PROTO_ARP;
+		break;
+	case PT_IP:
+		base_proto = BLOB_BASE_PROTO_IP;
+		break;
+	case PT_IPV4:
+		base_proto = BLOB_BASE_PROTO_IPv4;
+		break;
+	case PT_IPV6:
+		base_proto = BLOB_BASE_PROTO_IPv6;
+		break;
+	case PT_OTHER_L3:
+		base_proto = BLOB_BASE_PROTO_OTHER_LAYER_3;
+		break;
+	case PT_GRE:
+		base_proto = BLOB_BASE_PROTO_GRE;
+		break;
+	case PT_MINENCAP:
+		base_proto = BLOB_BASE_PROTO_MINENC;
+		break;
+	case PT_TCP:
+		base_proto = BLOB_BASE_PROTO_TCP;
+		break;
+	case PT_UDP:
+		base_proto = BLOB_BASE_PROTO_UDP;
+		break;
+	//TODO
+	case PT_IPSEC_AH:
+		base_proto = BLOB_BASE_PROTO_IPSEC;
+		break;
+	//TODO
+	case PT_IPSEC_ESP:
+		base_proto = BLOB_BASE_PROTO_IPSEC;
+		break;
+	case PT_SCTP:
+		base_proto = BLOB_BASE_PROTO_SCTP;
+		break;
+	case PT_DCCP:
+		base_proto = BLOB_BASE_PROTO_DCCP;
+		break;
+	case PT_OTHER_L4:
+		base_proto = BLOB_BASE_PROTO_OTHER_LAYER_4;
+		break;
+	case PT_GTP:
+		base_proto = BLOB_BASE_PROTO_GTP;
+		break;
+	case PT_ESP:
+		base_proto = BLOB_BASE_PROTO_ESP;
+		break;
+	case PT_NEXT_ETH:
+		base_proto = 0;
+		break;
+	case PT_NEXT_IP:
+		base_proto = 0;
+		break;
+	case PT_NEXT_TCP:
+		base_proto = 0;
+		break;
+	case PT_NEXT_UDP:
+		base_proto = 0;
+		break;
+	case PT_OTHER_L5:
+		base_proto = BLOB_BASE_PROTO_LAYER_5;
+		break;
+	case PT_FINAL_SHELL:
+		base_proto = BLOB_BASE_PROTO_FINAL_HEADER;
+		break;
+	case PT_RETURN:
+		base_proto = 0;
+		break;
+	case PT_END_PARSE:
+		base_proto = 0;
+		break;
+	}
+	return base_proto;
+}
+
+void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
+{
+	int sect_size;
+	uint32_t sp_rev;
+	uint32_t sp_rev_major = 3;
+	uint32_t sp_rev_minor = 2;
+
+	if (task->soc_name.compare(0, 3, "LS2") == 0) {
+		sp_rev_major = 3;
+		sp_rev_minor = 1;
+	}
+	else if (task->soc_name.compare(0, 3, "LX2") == 0) {
+		sp_rev_major = 3;
+		sp_rev_minor = 2;
+	}
+	sp_rev = (sp_rev_major << 16) | sp_rev_minor;
+
+	/* Calculate Section Size */
+	sect_size = 16;
+
+	/* MAGIC ID (LE) */
+	blob_write_cpu_to_le32(dumpFile, BLOB_MAGIC_ID);
+
+	/* BLOB_VER (LE) */
+	blob_write_cpu_to_le32(dumpFile, BLOB_VER);
+
+	/* SP_HW_REV (LE) */
+	blob_write_cpu_to_le32(dumpFile, sp_rev);
+
+	/* Length (4) - Blob length. Should be a multiple of 4.
+	 * Now the length is unknown so write zero. */
+	blob_write_cpu_to_le32(dumpFile, 0);
+
+	//Update blob size
+	blob_size += sect_size;
+}
+
+void CSoftParseResult::blob_write_blob_name(std::ofstream &dumpFile, const char *name)
+{
+	int i, sect_size, len, pad_len;
+
+	len = (int)strlen(name);
+	if (len % 4) {
+		pad_len = 4 * (len / 4 + 1) - len;
+	} else {
+		pad_len = 0;
+	}
+
+	/* Calculate Section Size */
+	sect_size = 16 +				/* Size (4) + TAG (4) + Reserved (8) */
+				len + pad_len;		/* name length + pad */
+
+	/* Section Size */
+	blob_write_cpu_to_le32(dumpFile, sect_size);
+
+	/* TAG */
+	blob_write_cpu_to_le32(dumpFile, 0);
+
+	/* Reserved (8) */
+	blob_write_cpu_to_le32(dumpFile, 0);
+	blob_write_cpu_to_le32(dumpFile, 0);
+
+	/* Blob Name */
+	for (i = 0; i < len; i++)
+	{
+		blob_write8(dumpFile, name[i]);
+	}
+	for (i = 0; i < pad_len; i++)
+		blob_write8(dumpFile, 0);
+
+	//Update blob size
+	blob_size += sect_size;
+}
+
+void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
+{
+	int i, sect_size, pad_size;
+	uint32_t flags;
+
+	//TODO: this prototype version works with only 1 Soft Parser protocol
+	//TODO: change here when decide how to include multiple SP in blob:
+	//		multiple SP in same section or in different sections
+	//		for now: load in all where are enabled
+	flags = 0;
+
+	std::vector< CProtocol>::const_iterator itProt;
+    for ( itProt = task->protocols.begin();
+    		itProt != task->protocols.end();
+          ++itProt )
+    {
+    	CProtocol protocol = *itProt;
+
+		std::vector< std::string >::const_iterator it;
+		for ( it = protocol.hw_accel.begin();
+			  it != protocol.hw_accel.end();
+			  ++it )
+		{
+			std::string hw_accel = *it;
+
+			if (hw_accel.compare("WRIOP_INGRESS") == 0) {
+				flags |= ENABLE_ON_WRIOP_INGRESS;
+			}
+			else if (hw_accel.compare("WRIOP_EGRESS") == 0) {
+				flags |= ENABLE_ON_WRIOP_EGRESS;
+			}
+			else if (hw_accel.compare("AIOP_INGRESS") == 0) {
+				flags |= ENABLE_ON_AIOP_INGRESS;
+			}
+			else if (hw_accel.compare("AIOP_EGRESS") == 0) {
+				flags |= ENABLE_ON_AIOP_EGRESS;
+			}
+		}
+    }
+
+	if (size % 4) {
+		pad_size = 4 * (size / 4 + 1) - size;
+	} else {
+		pad_size = 0;
+	}
+
+	/* Calculate Section Size */
+	sect_size = 16 +				/* Size (4) + TAG (4) + flags (4) + offset (4) */
+				size + pad_size;	/* bytecode size + pad */
+
+	/* Section Size */
+	blob_write_cpu_to_le32(dumpFile, sect_size);
+
+	/* TAG */
+	blob_write_cpu_to_le32(dumpFile, 1);
+
+	/* flags */
+	blob_write_cpu_to_le32(dumpFile, flags);
+
+	/* offset: Should be 4 bytes aligned
+	 * Must be a multiple of 4 in the [0x40, 0xFFC) range */
+	blob_write_cpu_to_le32(dumpFile, base);
+
+	/* bytecode */
+    for (i = 0; i < size; i++)
+    	blob_write8(dumpFile, p_Code[i]);
+	for (i = 0; i < pad_size; i++)
+		blob_write8(dumpFile, 0);
+
+	//Update blob size
+	blob_size += sect_size;
+}
+
+void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
+{
+	int sect_size = 0, profile_cfg, i, j;
+	uint8_t	flags, nameSize;
+	char profile_name[9];
+
+	/* Number of profiles configured */
+	profile_cfg = numOfLabels;
+
+	/* Calculate Section Size */
+	sect_size = 16 +				/* Size (4) + TAG (4) + Reserved (8) */
+				16 * profile_cfg;	/* profile cfg */
+
+	/* Section Size */
+	blob_write_cpu_to_le32(dumpFile, sect_size);
+
+	/* TAG */
+	blob_write_cpu_to_le32(dumpFile, 2);
+
+	/* Reserved (8) */
+	blob_write_cpu_to_le32(dumpFile, 0);
+	blob_write_cpu_to_le32(dumpFile, 0);
+
+	/* Profiles configuration */
+	for (i = 0; i < profile_cfg; i++)
+	{
+		/* Profiles cfg - name (8) */
+		memset(profile_name, 0, 9);
+
+		nameSize = strlen(labelsTable[i].protocol.name.c_str());
+		if (nameSize > 8) {
+			CGenericError::printWarning("Protocol name is too long (maximum limit is 8 characters)");
+			nameSize = 8;
+		}
+		memcpy(profile_name, labelsTable[i].protocol.name.c_str(), nameSize);
+		for (j = 0; j < 8; j++)
+			blob_write8(dumpFile, profile_name[j]);
+
+		/* Profiles cfg - flags (1) */
+		flags = 0;
+	    std::vector< std::string >::const_iterator it;
+	    for ( it = labelsTable[i].protocol.hw_accel.begin();
+	          it != labelsTable[i].protocol.hw_accel.end();
+	          ++it )
+	    {
+	    	std::string hw_accel = *it;
+
+	        if (hw_accel.compare("WRIOP_INGRESS") == 0) {
+	        	flags |= ENABLE_ON_WRIOP_INGRESS;
+	        }
+	        else if (hw_accel.compare("WRIOP_EGRESS") == 0) {
+	        	flags |= ENABLE_ON_WRIOP_EGRESS;
+	        }
+	        else if (hw_accel.compare("AIOP_INGRESS") == 0) {
+	        	flags |= ENABLE_ON_AIOP_INGRESS;
+	        }
+	        else if (hw_accel.compare("AIOP_EGRESS") == 0) {
+	        	flags |= ENABLE_ON_AIOP_EGRESS;
+	        }
+	    }
+		blob_write8(dumpFile, flags);
+
+		/* Reserved (1) */
+		blob_write8(dumpFile, 0);
+
+		//Auto entrypoint
+		uint16_t spEntrypoint = (uint16_t)labelsTable[i].position;
+
+		if (labelsTable[i].protocol.bValidEntrypoint) {
+			//Use user configured entrypoint
+			//SW parser entrypoint in instruction counts (1 word = 2 bytes): must be larger than 0x20
+			spEntrypoint = (uint16_t)(labelsTable[i].protocol.entrypoint / 2);
+		}
+
+		/* Seq start entry point (2) */
+		blob_write_cpu_to_le16(dumpFile, spEntrypoint);
+
+		/* Base protocol (4) */
+		blob_write_cpu_to_le32(dumpFile, blob_get_base_protocol(labelsTable[i].prevType[0]));
+	}
+
+	//Update blob size
+	blob_size += sect_size;
+}
+
+void CSoftParseResult::blob_write_ex_array(std::ofstream &dumpFile)
+{
+	int sect_size = 0, param_size = 16, i;
+
+	/* Calculate Section Size */
+	sect_size = 16 +			/* Size (4) + TAG (4) + Reserved (8) */
+				param_size;		/* parameters passed to soft parser bytecode */
+
+	/* Section Size */
+	blob_write_cpu_to_le32(dumpFile, sect_size);
+
+	/* TAG */
+	blob_write_cpu_to_le32(dumpFile, 3);
+
+	/* Reserved (8) */
+	blob_write_cpu_to_le32(dumpFile, 0);
+	blob_write_cpu_to_le32(dumpFile, 0);
+
+	//TODO: sp parameters
+	for (i = 0; i < param_size; i++)
+		blob_write8(dumpFile, swPrsDataParams[i]);
+
+	//Update blob size
+	blob_size += sect_size;
+}
+
+void CSoftParseResult::blob_write_blob_size(std::ofstream &dumpFile)
+{
+	dumpFile.seekp(12);
+	blob_write_cpu_to_le32(dumpFile, blob_size);
+}
+
+void CSoftParseResult::dumpBlob(std::string path)
+{
+    std::ofstream dumpFile;
+    dumpFile.open(path.c_str(), std::ios::out | std::ios::binary);
+
+    blob_size = 0;
+
+    /* File header */
+    blob_write_file_header(dumpFile);
+
+    /* Blob name */
+    blob_write_blob_name(dumpFile, task->name.c_str());
+
+    /* Bytecode */
+    blob_write_bytecode(dumpFile);
+
+    /* SP Profiles */
+    blob_write_sp_profiles(dumpFile);
+
+    /* Examination array */
+    //SP parameters are not required
+    //blob_write_ex_array(dumpFile);
+
+    /* Blob size */
+    blob_write_blob_size(dumpFile);
+
+	dumpFile.close();
+}
+
+//    end of Blob generation
+//----------------------------------------------------------------------
+

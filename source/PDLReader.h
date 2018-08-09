@@ -58,6 +58,12 @@ public:
     void parseFields       (CProtocol* protocol, xmlNodePtr pNode );
     void parseField        (CField* field,       xmlNodePtr pNode );
 
+    void parseSoc     	   (xmlNodePtr pNode );
+    void parseDevice       (CProtocol* protocol, xmlNodePtr pNode );
+    void parseMemory       (CProtocol* protocol, xmlNodePtr pNode );
+    void parseHwAccel      (CProtocol* protocol, xmlNodePtr pNode );
+    void parseParameter    (CProtocol* protocol, xmlNodePtr pNode );
+
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );
     static void checkUnknownAttr( xmlNodePtr pNode, int num, ... );

@@ -46,11 +46,13 @@
 
 #include "GenericError.h"
 #include "Utils.h"
+#include "spc.h"
 
 class CExecuteExpression;
 class CExecuteSection;
 class CProtocol;
 class CLabel;
+class CTaskDef;
 
 /// A set of named numbers with fixed values
 typedef std::map< std::string, unsigned int >           CConstants;
@@ -346,7 +348,7 @@ class CExecuteCode : public CConfirmCustomExtractor
 class CProtocol
 {
   public:
-    CProtocol () : line(NO_LINE) {};
+    CProtocol () : line(NO_LINE), offset(0), bValidOffset(false), entrypoint(0), bValidEntrypoint(false) {};
     bool         FieldExists( const std::string fieldname) const;
     bool         GetFieldProperties( const std::string fieldname,
                                      uint32_t&         bitsize,
@@ -369,6 +371,15 @@ class CProtocol
     int                        line;
     std::vector< CField >      fields;
     CExecuteCode               executeCode;
+
+    uint32_t	offset;			//user defined offset in bytes
+    bool		bValidOffset;
+
+    uint32_t	entrypoint; 	//user defined entrypoint in bytes
+    bool		bValidEntrypoint;
+
+    std::vector< std::string > hw_accel;
+
 };
 
 class CLabel
@@ -390,44 +401,67 @@ class CExtension
 public:
     std::vector< ProtoType >   prevType;
     std::vector< std::string > prevNames;
+    CProtocol	protocol;
     uint32_t position;
     uint8_t  indexPerHdr;
 
-    CExtension() : position(0), indexPerHdr(0) {}
-    CExtension(std::vector< ProtoType >& types, std::vector< std::string >& names, uint32_t pos) :
-        prevType(types), prevNames(names), position(pos), indexPerHdr(0) {}
+    CExtension(std::vector< ProtoType >& types, std::vector< std::string >& names, CProtocol prot, uint32_t pos) :
+        prevType(types), prevNames(names), protocol(prot), position(pos), indexPerHdr(0) {}
 };
 
-const int ASSEMBLER_BASE = 0x20;
-const int CODE_SIZE      = 0xFBC; //4028 bytes
+const int ASSEMBLER_BASE = SP_ASSEMBLER_BASE_ADDRESS;
+const int CODE_SIZE      = MAX_SP_CODE_SIZE; //4028 bytes
 
 class CSoftParseResult
 {
 public:
-    bool                     softParseEnabled;
-    bool                     override1;                   /**< FALSE to invoke a check that nothing else
-                                                             was loaded to this address, including
-                                                             internal patched.
-                                                             TRUE to override any existing code.*/
-    uint32_t                 size;                       /**< SW parser code size */
-    uint16_t                 base;                       /**< SW parser base (in instruction counts!
-                                                             must be larger than 0x20)*/
-    uint8_t                  p_Code[CODE_SIZE];          /**< SW parser code */
-    uint32_t                 swPrsDataParams[16];
-                                                         /**< SW parser data (parameters) */
-    uint8_t                  numOfLabels;                /**< Number of labels for SW parser. */
-    std::vector <CExtension> labelsTable;                /**< SW parser labels table, containing n
-                                                             umOfLabels entries */
+    CTaskDef 				*task;
+    uint32_t                 size;                      /**< SW parser code size in bytes */
+    uint16_t                 base;                      /**< SW parser base bytes
+                                                             must be larger than 0x40*/
+    bool					 cpuLE;						/**< TRUE if CPU is LE */
+    uint8_t                  p_Code[CODE_SIZE];         /**< SW parser code */
+    uint8_t                  swPrsDataParams[PRS_PARAM_SIZE];		/**< SW parser data (parameters) */
+    uint8_t                  numOfLabels;               /**< Number of labels for SW parser. */
+    std::vector <CExtension> labelsTable;               /**< SW parser labels table, containing
+                                                             numOfLabels entries */
 
-    CSoftParseResult() : softParseEnabled(0), override1(0) {}
-    void setEnable      (const bool val);
+    CSoftParseResult();
+    void setTask		(CTaskDef *taskdef);
     void setSize        (const uint32_t baseAddress1);
     void setBinary      (const uint8_t binary1[], const uint32_t size);
-    void setBaseAddresss(const uint16_t baseAddress1);
+    void setBaseAddresss(const uint16_t baseAddress);
     void setExtensions  (const std::vector <CExtension> extns);
     void dumpHeader     (std::string path) const;
 	void dumpBinary     (std::string path) const;
     static std::string externProtoName (const ProtoType type);
+
+
+    //----------------------------------------------------------------------
+    //    Blob generation
+
+    uint32_t 	blob_size;
+
+	uint16_t cpu_to_le16(uint16_t val16);
+    uint32_t cpu_to_le32(uint32_t val32);
+    void blob_write8(std::ofstream &dumpFile, uint8_t val);
+    void blob_write_cpu_to_le16(std::ofstream &dumpFile, uint16_t val16);
+    void blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32);
+
+    uint32_t blob_get_base_protocol(const ProtoType prevType);
+
+    void blob_write_file_header(std::ofstream &dumpFile);
+    void blob_write_blob_name(std::ofstream &dumpFile, const char *name);
+    void blob_write_bytecode(std::ofstream &dumpFile);
+    void blob_write_sp_profiles(std::ofstream &dumpFile);
+    void blob_write_ex_array(std::ofstream &dumpFile);
+    void blob_write_blob_size(std::ofstream &dumpFile);
+
+	void dumpBlob(std::string path);
+
+    //    end of Blob generation
+    //----------------------------------------------------------------------
+
 };
 
 
@@ -443,6 +477,9 @@ class CTaskDef
     std::string pcdversion;
     std::string pcdcreator;
     std::string pcddate;
+
+    std::string soc_name;
+    std::string soc_rev;
 
     std::vector< CProtocol>      protocols;
     CSoftParseResult             spr;
