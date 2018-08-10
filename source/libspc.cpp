@@ -61,7 +61,7 @@ extern "C" {
 int spc_compile(spc_model*   cmodel,
     const char*  namePDL,
     const char*  nameSP,
-    unsigned int swOffset,
+    unsigned int swOffset,	// TODO: not used: it is by default
     bool genIntermCode)
 {
     error_text   = "";

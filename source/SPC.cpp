@@ -111,11 +111,6 @@ int main( int argc, char* argv[] )
         // Define the command line object.
         TCLAP::CmdLine cmd( "Soft Parser Configuration Tool", ' ', SPC_VERSION );
 
-		TCLAP::ValueArg<std::string> swOffset("b", "offset",
-				"Soft Parser generated code base address", false, "0x40",
-				"offset");
-		cmd.add(swOffset);
-
 		TCLAP::ValueArg<std::string> log_level("l", "log_level",
 				"Log level: none, err, warn, info, dbg1, dbg2, dbg3", false,
 				"info", "level");
@@ -151,7 +146,7 @@ int main( int argc, char* argv[] )
         int ret = spc_compile(&model,
                     namePDL.getValue().c_str(),
                     nameSP.getValue().c_str(),
-                    strtoul( swOffset.getValue().c_str(), 0, 0 ),
+                    SP_ASSEMBLER_BASE_ADDRESS,
                     interm_code.getValue());
 
         if ( ret != 0 ) {

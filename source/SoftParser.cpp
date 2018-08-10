@@ -39,6 +39,7 @@ using namespace std;
  * 	@task: Task data definition
  * 	@filePath: Soft Parser XML file
  * 	@baseAddress: Soft Parser base address in bytes: must be larger than 0x40
+ * 			- TODO: not used: it is by default
  * 	@genIntermCode: Generate intermediate code
  *
  */
@@ -48,7 +49,10 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     CCode             newCode;
     std::string       fileNoExt, baseName;
     unsigned char     binary1[CODE_SIZE] = {0};
-    sp_label_list_t *labels, *labelsIter;
+    sp_label_list_t   *labels, *labelsIter;
+
+    //TODO: baseAddress is coming zero because must be retrieved from XML or used default
+    baseAddress = task->getBaseAddresss();
 
     //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
     //baseAddress must be 4 bytes aligned (so it is divisible by 2)
@@ -164,6 +168,16 @@ void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list
         if (!labelsIter)
             throw CGenericError(ERR_INTERNAL_SP_ERROR, "Missing label");
     }
+}
+
+uint32_t CTaskDef::getBaseAddresss()
+{
+	if (program.empty())
+		return SP_ASSEMBLER_BASE_ADDRESS;
+
+	//TODO: ONLY one bytecode sections is supported for now:
+	//  so take offset from the first section
+	return program[0].swOffset;
 }
 
 /*
@@ -341,15 +355,16 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 #define BLOB_VER				0x01000000
 
 /*
+ * There are 3 SP memories available:
 Bit 31: load to WRIOP INGRESS parser memory
 Bit 30: load to WRIOP EGRESS parser memory
-Bit 29: load to AIOP parser memory as ingress soft parser
-Bit 28: load to AIOP parser memory as egress soft parser
+Bit 29: load to AIOP (parser memory as ingress soft parser)
+// ??? -> Bit 28: load to AIOP parser memory as egress soft parser - this doesn't exists...
  */
-#define LOAD_IN_WRIOP_INGRESS_PARSER		0x80000000
-#define LOAD_IN_WRIOP_EGRESS_PARSER			0x40000000
-#define LOAD_IN_AIOP_INGRESS_PARSER			0x20000000
-#define LOAD_IN_AIOP_EGRESS_PARSER			0x10000000
+#define LOAD_IN_WRIOP_INGRESS		0x80000000
+#define LOAD_IN_WRIOP_EGRESS		0x40000000
+#define LOAD_IN_AIOP_INGRESS		0x20000000
+//#define LOAD_IN_AIOP_EGRESS			0x10000000
 
 
 /* Profile configuration */
@@ -357,6 +372,19 @@ Bit 28: load to AIOP parser memory as egress soft parser
 #define ENABLE_ON_WRIOP_EGRESS		0x40
 #define ENABLE_ON_AIOP_INGRESS		0x20
 #define ENABLE_ON_AIOP_EGRESS		0x10
+
+
+/* Available HW Accelerators */
+#define HW_ACCEL_WRIOP_INGRESS		"WRIOP_INGRESS"
+#define HW_ACCEL_WRIOP_EGRESS		"WRIOP_EGRESS"
+#define HW_ACCEL_AIOP_INGRESS		"AIOP_INGRESS"
+#define HW_ACCEL_AIOP_EGRESS		"AIOP_EGRESS"
+#define HW_ACCEL_WRIOP				"WRIOP"		// WRIOP ingress and egress
+#define HW_ACCEL_AIOP				"AIOP"		// AIOP ingress and egress
+#define HW_ACCEL_ALL				"ALL"		// All of the above
+
+
+#define PARAM_TYPE_READ_ONLY		0x01
 
 
 //TODO: update to latest doc
@@ -539,6 +567,8 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 {
 	int sect_size;
 	uint32_t sp_rev;
+
+	//DEFAULT SoftParser Rev:
 	uint32_t sp_rev_major = 3;
 	uint32_t sp_rev_minor = 2;
 
@@ -619,35 +649,8 @@ void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
 	//		multiple SP in same section or in different sections
 	//		for now: load in all where are enabled
 	flags = 0;
-
-	std::vector< CProtocol>::const_iterator itProt;
-    for ( itProt = task->protocols.begin();
-    		itProt != task->protocols.end();
-          ++itProt )
-    {
-    	CProtocol protocol = *itProt;
-
-		std::vector< std::string >::const_iterator it;
-		for ( it = protocol.hw_accel.begin();
-			  it != protocol.hw_accel.end();
-			  ++it )
-		{
-			std::string hw_accel = *it;
-
-			if (hw_accel.compare("WRIOP_INGRESS") == 0) {
-				flags |= ENABLE_ON_WRIOP_INGRESS;
-			}
-			else if (hw_accel.compare("WRIOP_EGRESS") == 0) {
-				flags |= ENABLE_ON_WRIOP_EGRESS;
-			}
-			else if (hw_accel.compare("AIOP_INGRESS") == 0) {
-				flags |= ENABLE_ON_AIOP_INGRESS;
-			}
-			else if (hw_accel.compare("AIOP_EGRESS") == 0) {
-				flags |= ENABLE_ON_AIOP_EGRESS;
-			}
-		}
-    }
+	//TODO: this prototype version loads code in ALL parsers for now
+	flags |= (LOAD_IN_WRIOP_INGRESS | LOAD_IN_WRIOP_EGRESS | LOAD_IN_AIOP_INGRESS);
 
 	if (size % 4) {
 		pad_size = 4 * (size / 4 + 1) - size;
@@ -723,41 +726,42 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		/* Profiles cfg - flags (1) */
 		flags = 0;
 	    std::vector< std::string >::const_iterator it;
-	    for ( it = labelsTable[i].protocol.hw_accel.begin();
-	          it != labelsTable[i].protocol.hw_accel.end();
+	    for ( it = labelsTable[i].protocol.engines.begin();
+	          it != labelsTable[i].protocol.engines.end();
 	          ++it )
 	    {
-	    	std::string hw_accel = *it;
+	    	std::string engine = *it;
 
-	        if (hw_accel.compare("WRIOP_INGRESS") == 0) {
+	        if (engine.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
 	        	flags |= ENABLE_ON_WRIOP_INGRESS;
 	        }
-	        else if (hw_accel.compare("WRIOP_EGRESS") == 0) {
+	        else if (engine.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
 	        	flags |= ENABLE_ON_WRIOP_EGRESS;
 	        }
-	        else if (hw_accel.compare("AIOP_INGRESS") == 0) {
+	        else if (engine.compare(HW_ACCEL_AIOP_INGRESS) == 0) {
 	        	flags |= ENABLE_ON_AIOP_INGRESS;
 	        }
-	        else if (hw_accel.compare("AIOP_EGRESS") == 0) {
+	        else if (engine.compare(HW_ACCEL_AIOP_EGRESS) == 0) {
 	        	flags |= ENABLE_ON_AIOP_EGRESS;
 	        }
+			else if (engine.compare(HW_ACCEL_WRIOP) == 0) {
+				flags |= (ENABLE_ON_WRIOP_INGRESS | ENABLE_ON_WRIOP_EGRESS);
+			}
+			else if (engine.compare(HW_ACCEL_AIOP) == 0) {
+				flags |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
+			}
+			else if (engine.compare(HW_ACCEL_ALL) == 0) {
+				flags |= (ENABLE_ON_WRIOP_INGRESS | ENABLE_ON_WRIOP_EGRESS |
+							ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
+			}
 	    }
 		blob_write8(dumpFile, flags);
 
 		/* Reserved (1) */
 		blob_write8(dumpFile, 0);
 
-		//Auto entrypoint
-		uint16_t spEntrypoint = (uint16_t)labelsTable[i].position;
-
-		if (labelsTable[i].protocol.bValidEntrypoint) {
-			//Use user configured entrypoint
-			//SW parser entrypoint in instruction counts (1 word = 2 bytes): must be larger than 0x20
-			spEntrypoint = (uint16_t)(labelsTable[i].protocol.entrypoint / 2);
-		}
-
 		/* Seq start entry point (2) */
-		blob_write_cpu_to_le16(dumpFile, spEntrypoint);
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)labelsTable[i].position);
 
 		/* Base protocol (4) */
 		blob_write_cpu_to_le32(dumpFile, blob_get_base_protocol(labelsTable[i].prevType[0]));
@@ -769,25 +773,139 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 
 void CSoftParseResult::blob_write_ex_array(std::ofstream &dumpFile)
 {
-	int sect_size = 0, param_size = 16, i;
+	int sect_size = 0, i, j, nameSize;
+	int paramNo = task->parameters.size();
+	int parSize, entry_size, param_size = 0, pad_len;
+	uint8_t	flags;
+	bool zeroValue;
+	char name[9];
+
+	//calculate sp parameters size
+	param_size = 0;
+	for (i = 0; i < paramNo; i++) {
+
+		/* calculate entry-size */
+		entry_size = 	2 +  /* entry-size (2) */
+						2 +  /* param-offset (2) */
+						2 +  /* param-size (2) */
+						1 +  /* flags (1) */
+						1 +  /* Reserved (1) */
+						8 +  /* profile-name (8) */
+						8;   /* param-name (8) */
+
+		zeroValue = true;
+		for (j = 0; j < PRS_PARAM_SIZE; j++) {
+			if (task->parameters[i].value[j] != 0) {
+				zeroValue = false;
+				break;
+			}
+		}
+		if (!zeroValue) {
+			parSize = task->parameters[i].size;
+			if (parSize % 4) {
+				pad_len = 4 * (parSize / 4 + 1) - parSize;
+			} else {
+				pad_len = 0;
+			}
+			entry_size += (parSize + pad_len);
+		}
+
+		param_size += entry_size;
+	}
 
 	/* Calculate Section Size */
 	sect_size = 16 +			/* Size (4) + TAG (4) + Reserved (8) */
-				param_size;		/* parameters passed to soft parser bytecode */
+				param_size;		/* parameters passed to soft parser */
 
 	/* Section Size */
 	blob_write_cpu_to_le32(dumpFile, sect_size);
 
-	/* TAG */
+	/* TAG = 3 */
 	blob_write_cpu_to_le32(dumpFile, 3);
 
 	/* Reserved (8) */
 	blob_write_cpu_to_le32(dumpFile, 0);
 	blob_write_cpu_to_le32(dumpFile, 0);
 
-	//TODO: sp parameters
-	for (i = 0; i < param_size; i++)
-		blob_write8(dumpFile, swPrsDataParams[i]);
+	//sp parameters
+	for (i = 0; i < paramNo; i++) {
+
+		/* calculate entry-size */
+		entry_size = 	2 +  /* entry-size (2) */
+						2 +  /* param-offset (2) */
+						2 +  /* param-size (2) */
+						1 +  /* flags (1) */
+						1 +  /* Reserved (1) */
+						8 +  /* profile-name (8) */
+						8;   /* param-name (8) */
+
+		zeroValue = true;
+		for (j = 0; j < PRS_PARAM_SIZE; j++) {
+			if (task->parameters[i].value[j] != 0) {
+				zeroValue = false;
+				break;
+			}
+		}
+		if (!zeroValue) {
+			parSize = task->parameters[i].size;
+			if (parSize % 4) {
+				pad_len = 4 * (parSize / 4 + 1) - parSize;
+			} else {
+				pad_len = 0;
+			}
+			entry_size += (parSize + pad_len);
+		}
+
+		/* entry-size (2) */
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)entry_size);
+
+		/* param-offset (2) */
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)task->parameters[i].offset);
+
+		/* param-size (2) */
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)task->parameters[i].size);
+
+		/* flags (1) */
+		flags = 0;
+		if (task->parameters[i].readOnly)
+			flags |= PARAM_TYPE_READ_ONLY;
+		blob_write8(dumpFile, flags);
+
+		/* Reserved (1) */
+		blob_write8(dumpFile, 0);
+
+		/* profile-name (8) */
+		memset(name, 0, 9);
+
+		nameSize = strlen(task->parameters[i].protocol.c_str());
+		if (nameSize > 8) {
+			CGenericError::printWarning("Protocol name is too long (maximum limit is 8 characters)");
+			nameSize = 8;
+		}
+		memcpy(name, task->parameters[i].protocol.c_str(), nameSize);
+		for (j = 0; j < 8; j++)
+			blob_write8(dumpFile, name[j]);
+
+		/* param-name (8) */
+		memset(name, 0, 9);
+
+		nameSize = strlen(task->parameters[i].name.c_str());
+		if (nameSize > 8) {
+			CGenericError::printWarning("Parameter name is too long (maximum limit is 8 characters)");
+			nameSize = 8;
+		}
+		memcpy(name, task->parameters[i].name.c_str(), nameSize);
+		for (j = 0; j < 8; j++)
+			blob_write8(dumpFile, name[j]);
+
+		/* value (n*4) */
+		if (!zeroValue) {
+			for (j = 0; j < parSize; j++)
+				blob_write8(dumpFile, task->parameters[i].value[j]);
+			for (j = 0; j < pad_len; j++)
+				blob_write8(dumpFile, 0);
+		}
+	}
 
 	//Update blob size
 	blob_size += sect_size;
@@ -819,8 +937,7 @@ void CSoftParseResult::dumpBlob(std::string path)
     blob_write_sp_profiles(dumpFile);
 
     /* Examination array */
-    //SP parameters are not required
-    //blob_write_ex_array(dumpFile);
+    blob_write_ex_array(dumpFile);
 
     /* Blob size */
     blob_write_blob_size(dumpFile);

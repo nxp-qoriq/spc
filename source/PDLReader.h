@@ -59,10 +59,11 @@ public:
     void parseField        (CField* field,       xmlNodePtr pNode );
 
     void parseSoc     	   (xmlNodePtr pNode );
+    void parseBytecode     (CCodeSection* engine, xmlNodePtr pNode );
+    void parseParameters   (xmlNodePtr pNode );
+    void parseParameter    (CParameter* param, xmlNodePtr pNode );
     void parseDevice       (CProtocol* protocol, xmlNodePtr pNode );
-    void parseMemory       (CProtocol* protocol, xmlNodePtr pNode );
-    void parseHwAccel      (CProtocol* protocol, xmlNodePtr pNode );
-    void parseParameter    (CProtocol* protocol, xmlNodePtr pNode );
+    void parseDevEngine    (CProtocol* protocol, xmlNodePtr pNode );
 
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );
@@ -71,6 +72,7 @@ protected:
 private:
     CTaskDef* task;
     bool      softParse;
+    uint32_t  spParameterOffset;
     CGenericError error;
 };
 

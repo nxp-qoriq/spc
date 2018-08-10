@@ -249,8 +249,8 @@ class CExecuteInline : public CConfirmCustomExtractor
     std::string      data;
     int              line;
 
-    CExecuteInline  () :                  data(""),    line(NO_LINE) {}
-    CExecuteInline  (std::string data1) : data(data1), line(NO_LINE) {}
+    CExecuteInline  () :                  data(""),    line(NO_LINE) {};
+    CExecuteInline  (std::string data1) : data(data1), line(NO_LINE) {};
     void dumpInline (std::ofstream &outFile, uint8_t spaces);
 
     virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {}
@@ -293,8 +293,8 @@ public:
 	std::string      name;
 	int              line;
 
-	CExecuteGosub  () :                  line(NO_LINE) {}
-	CExecuteGosub  (std::string name1) : name(name1), line(NO_LINE) {}
+	CExecuteGosub  () :                  line(NO_LINE) {};
+	CExecuteGosub  (std::string name1) : name(name1), line(NO_LINE) {};
 	void dumpGosub (std::ofstream &outFile, uint8_t spaces);
 
 	virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {};
@@ -309,8 +309,8 @@ public:
 	bool			 set;
 	int              line;
 
-	CExecuteSetresetfaf  () :                  line(NO_LINE) {}
-	CExecuteSetresetfaf  (bool faf1, std::string name1, bool set1) : faf(faf1), name(name1), set(set1), line(NO_LINE) {}
+	CExecuteSetresetfaf  () :                  line(NO_LINE) {};
+	CExecuteSetresetfaf  (bool faf1, std::string name1, bool set1) : faf(faf1), name(name1), set(set1), line(NO_LINE) {};
 	void dumpSetresetfaf (std::ofstream &outFile, uint8_t spaces);
 
 	virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const {};
@@ -348,7 +348,7 @@ class CExecuteCode : public CConfirmCustomExtractor
 class CProtocol
 {
   public:
-    CProtocol () : line(NO_LINE), offset(0), bValidOffset(false), entrypoint(0), bValidEntrypoint(false) {};
+    CProtocol () : line(NO_LINE) {};
     bool         FieldExists( const std::string fieldname) const;
     bool         GetFieldProperties( const std::string fieldname,
                                      uint32_t&         bitsize,
@@ -372,13 +372,7 @@ class CProtocol
     std::vector< CField >      fields;
     CExecuteCode               executeCode;
 
-    uint32_t	offset;			//user defined offset in bytes
-    bool		bValidOffset;
-
-    uint32_t	entrypoint; 	//user defined entrypoint in bytes
-    bool		bValidEntrypoint;
-
-    std::vector< std::string > hw_accel;
+    std::vector< std::string > engines;
 
 };
 
@@ -411,6 +405,33 @@ public:
 
 const int ASSEMBLER_BASE = SP_ASSEMBLER_BASE_ADDRESS;
 const int CODE_SIZE      = MAX_SP_CODE_SIZE; //4028 bytes
+
+
+class CCodeSection
+{
+	public:
+	CCodeSection() :  swOffset(ASSEMBLER_BASE) 	{};
+
+	public:
+		uint32_t		swOffset;
+		std::vector< std::string > engines;
+		std::vector< std::string > protocols;
+};
+
+class CParameter
+{
+	public:
+	CParameter() :  offset(0), size(0), readOnly(false) 	{};
+
+	public:
+		std::string		name;
+		std::string		protocol;
+		uint32_t		offset;
+		uint32_t		size;
+		bool			readOnly;
+		uint8_t			value[PRS_PARAM_SIZE];
+};
+
 
 class CSoftParseResult
 {
@@ -481,12 +502,16 @@ class CTaskDef
     std::string soc_name;
     std::string soc_rev;
 
-    std::vector< CProtocol>      protocols;
+    std::vector< CProtocol >     protocols;
+    std::vector< CCodeSection >  program;
+    std::vector< CParameter >  	 parameters;
+
     CSoftParseResult             spr;
 
   public:
     CTaskDef();
     ~CTaskDef();
+
     bool checkSemantics();
 
     bool FieldExists       ( const std::string fullFieldName) const;
@@ -498,6 +523,7 @@ class CTaskDef
     void deleteExecute  ();
     void dumpSpParsed   (std::string path);
 
+    uint32_t getBaseAddresss();
 
 };
 
