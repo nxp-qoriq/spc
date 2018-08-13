@@ -283,6 +283,8 @@ short CProtocol::ProtocolLayer() const
 short CProtocol::ProtocolLayer(ProtoType      pt)
 {
     switch (pt) {
+        case    PT_NONE:
+        	return 0;
         case    PT_ETH:
         case    PT_LLC_SNAP:
         case    PT_VLAN:

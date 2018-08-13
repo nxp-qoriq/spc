@@ -1443,6 +1443,7 @@ std::string CLabelOperand::getOperandName () const
 std::string CLabel::getProtocolOutputName ()  const
 {
     switch (protocol) {
+    	case PT_NONE:       return "ETH_HXS";	/* In case SP runs before HW parser then return to ETH */
         case PT_ETH:        return "ETH_HXS";
         case PT_LLC_SNAP:   return "LLC_SNAP_HXS";
         case PT_VLAN:       return "VLAN_HXS";

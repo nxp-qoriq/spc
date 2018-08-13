@@ -82,6 +82,7 @@ typedef enum ExecuteSectionType {
 
 
 typedef enum ProtoType {
+    PT_NONE,   			/* Used to invoke SP before HW Parser: before Ethernet */
     PT_ETH,
     PT_LLC_SNAP,
     PT_VLAN,

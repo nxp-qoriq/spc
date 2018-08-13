@@ -992,7 +992,8 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
 
     switch (pt)
     {
-        case PT_ETH:        lookForRAType = RA_ETHOFFSET;       break;
+    	case PT_NONE:       lookForRAType = RA_EMPTY;       	break;
+    	case PT_ETH:        lookForRAType = RA_ETHOFFSET;       break;
         case PT_VLAN:       lookForRAType = RA_VLANTCIOFFSET_N; break;
         case PT_LLC_SNAP:   lookForRAType = RA_LLC_SNAPOFFSET;  break;
         case PT_MPLS:       lookForRAType = RA_MPLSOFFSET_N;    break;
@@ -1018,9 +1019,11 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
         default: throw CGenericErrorLine (ERR_INTERNAL_SP_ERROR, line);
     }
 
-    eCode = RA::Instance().findTypeInRA(lookForRAType, object->location);
-    if (!eCode)
-        throw CGenericError (ERR_INTERNAL_SP_ERROR);
+    if (lookForRAType != RA_EMPTY) {
+		eCode = RA::Instance().findTypeInRA(lookForRAType, object->location);
+		if (!eCode)
+			throw CGenericError (ERR_INTERNAL_SP_ERROR);
+    }
 }
 
 /*Find a protocol*/
@@ -1053,6 +1056,7 @@ ProtoType CIR::findSpecificProtocol(std::string name, int line) const
     std::string newName = name;
     std::transform(newName.begin(), newName.end(), newName.begin(), mytolower);
 
+    protocolsLabels["none"]     	= PT_NONE;
     protocolsLabels["ethernet"]     = PT_ETH;
     protocolsLabels["llc_snap"]     = PT_LLC_SNAP;
     protocolsLabels["vlan"]         = PT_VLAN;

@@ -325,6 +325,7 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     std::map< ProtoType, std::string >::iterator protocolsLabelsIterator;
     std::map< ProtoType, std::string> protocolsLabels;
 
+    protocolsLabels[PT_NONE]      = "NET_PROT_NONE";
     protocolsLabels[PT_ETH]       = "NET_PROT_ETH";
     protocolsLabels[PT_LLC_SNAP]  = "NET_PROT_SNAP";
     protocolsLabels[PT_VLAN]      = "NET_PROT_VLAN";
@@ -483,6 +484,9 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 	//TODO: update protocols
 	switch (prevType)
 	{
+	case PT_NONE:
+		base_proto = BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME;
+		break;
 	case PT_ETH:
 		base_proto = BLOB_BASE_PROTO_ETHERNET;
 		break;

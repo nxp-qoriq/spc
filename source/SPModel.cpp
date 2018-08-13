@@ -88,20 +88,18 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
 
 	// Copy SP label info
 	for ( i = 0; i < swPrs.numOfLabels; ++i ) {
-		swPrs.labelsTable[i].indexPerHdr =
-			taskSpr.labelsTable[i].indexPerHdr;
-		swPrs.labelsTable[i].instructionOffset =
-			taskSpr.labelsTable[i].position;
-		swPrs.labelsTable[i].hdr =
-				getHeaderType(taskSpr.labelsTable[i].prevNames[0]);
-		if ( swPrs.labelsTable[i].hdr == NET_PROT_NONE ) {
+		swPrs.labelsTable[i].indexPerHdr = taskSpr.labelsTable[i].indexPerHdr;
+		swPrs.labelsTable[i].instructionOffset = taskSpr.labelsTable[i].position;
+		swPrs.labelsTable[i].hdr = getHeaderType(taskSpr.labelsTable[i].prevNames[0]);
+
+		if ( swPrs.labelsTable[i].hdr == NET_PROT_DUMMY_LAST ) {
 			std::string shim_protocol =
 				pTaskDef->getShimNoFromCustom( taskSpr.labelsTable[i].prevNames[0] );
 			if ( !shim_protocol.empty() ) { // Shim header is empty if custom protocol is not found
 				swPrs.labelsTable[i].hdr = getHeaderType( shim_protocol );
 			}
 			else {
-				// Header type NET_PROT_NONE is not accepted as a valid value
+				// Header type NET_PROT_DUMMY_LAST is not accepted as a valid value
 				throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
 			}
 		}
@@ -115,6 +113,7 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
 enum net_prot CFMCModel::getHeaderType( std::string protoname )
 {
     std::map< std::string, enum net_prot > net_types;
+    net_types[ "none" ]  	 = NET_PROT_NONE;
     net_types[ "ethernet" ]  = NET_PROT_ETH;
     net_types[ "vlan" ]      = NET_PROT_VLAN;
     net_types[ "llc_snap" ]  = NET_PROT_LLC_SNAP;
@@ -144,6 +143,6 @@ enum net_prot CFMCModel::getHeaderType( std::string protoname )
         return net_types[protoname];
     }
 
-    return NET_PROT_NONE;
+    return NET_PROT_DUMMY_LAST;
 }
 
