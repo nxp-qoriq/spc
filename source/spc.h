@@ -94,6 +94,7 @@ typedef struct spc_model_t {
 
 int spc_compile(
 		spc_model*   model,
+		const char*  nameCfg,
         const char*  namePDL,
         const char*  nameSP,
         unsigned int swOffset,

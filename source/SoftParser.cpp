@@ -180,6 +180,16 @@ uint32_t CTaskDef::getBaseAddresss()
 	return program[0].swOffset;
 }
 
+void CTaskDef::enableProtocolOnInit(std::string protocol_name, std::string engine_name)
+{
+	for ( int i = 0; i < protocols.size(); i++ ) {
+        if ( protocols[i].name == protocol_name ) {
+        	protocols[i].engines.push_back(engine_name);
+        	break;
+        }
+	}
+}
+
 /*
    Detect CPU Endianness
    returns 1 if CPU is LE, 0 in case of BE
@@ -375,19 +385,20 @@ Bit 29: load to AIOP (parser memory as ingress soft parser)
 
 
 /* Available HW Accelerators */
-#define HW_ACCEL_WRIOP_INGRESS		"WRIOP_INGRESS"
-#define HW_ACCEL_WRIOP_EGRESS		"WRIOP_EGRESS"
-#define HW_ACCEL_AIOP_INGRESS		"AIOP_INGRESS"
-#define HW_ACCEL_AIOP_EGRESS		"AIOP_EGRESS"
-#define HW_ACCEL_WRIOP				"WRIOP"		// WRIOP ingress and egress
-#define HW_ACCEL_AIOP				"AIOP"		// AIOP ingress and egress
+#define HW_ACCEL_WRIOP_INGRESS		"wriop_ingress"
+#define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
+#define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
+#define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
+#define HW_ACCEL_WRIOP				"wriop"		// WRIOP ingress and egress
+#define HW_ACCEL_AIOP				"aiop"		// AIOP ingress and egress
 #define HW_ACCEL_ALL				"ALL"		// All of the above
 
 
 #define PARAM_TYPE_READ_ONLY		0x01
 
 
-//TODO: update to latest doc
+//TODO: update to latest doc - aici trebuie modificat la valori: 1, 2, 3, 4...
+	// Alex e de acord sa inceapa Eth de la 1 (nu de la 0)
 #define BLOB_BASE_PROTO_ETHERNET		0x00000001
 #define BLOB_BASE_PROTO_LLC_SNAP		0x00000002
 #define BLOB_BASE_PROTO_VLAN			0x00000004
@@ -411,6 +422,8 @@ Bit 29: load to AIOP (parser memory as ingress soft parser)
 #define BLOB_BASE_PROTO_VxLAN			0x00100000
 #define BLOB_BASE_PROTO_LAYER_5			0x00200000
 #define BLOB_BASE_PROTO_FINAL_HEADER	0x00400000
+
+#define BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME	256
 
 //TODO
 //0x80: 1st header in frame
@@ -779,6 +792,10 @@ void CSoftParseResult::blob_write_ex_array(std::ofstream &dumpFile)
 	uint8_t	flags;
 	bool zeroValue;
 	char name[9];
+
+	//Do not generate parameters section if there is no parameter
+	if (paramNo == 0)
+		return;
 
 	//calculate sp parameters size
 	param_size = 0;

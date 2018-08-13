@@ -121,6 +121,11 @@ int main( int argc, char* argv[] )
 				"custom_protocol_file");
 		cmd.add(nameSP);
 
+        TCLAP::ValueArg<std::string> nameCfg( "c", "config",
+        		"Configuration file name", false, "nodefault",
+            	"config_file" );
+        cmd.add( nameCfg );
+
 #ifdef WIN32
 		TCLAP::ValueArg<std::string> namePDL( "d", "pdl",
 				"PDL file name", false,
@@ -144,6 +149,7 @@ int main( int argc, char* argv[] )
 			throw CGenericError(ERR_SP_REQUIRED);
 
         int ret = spc_compile(&model,
+        			nameCfg.getValue().c_str(),
                     namePDL.getValue().c_str(),
                     nameSP.getValue().c_str(),
                     SP_ASSEMBLER_BASE_ADDRESS,

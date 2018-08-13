@@ -36,6 +36,7 @@
 #include "GenericError.h"
 #include "TaskDef.h"
 #include "PDLReader.h"
+#include "ConfigReader.h"
 #include "SPModel.h"
 #include "SoftParser.h"
 
@@ -59,6 +60,7 @@ extern "C" {
 
 
 int spc_compile(spc_model*   cmodel,
+	const char*  nameCfg,
     const char*  namePDL,
     const char*  nameSP,
     unsigned int swOffset,	// TODO: not used: it is by default
@@ -73,8 +75,8 @@ int spc_compile(spc_model*   cmodel,
     memset( cmodel, 0, sizeof( *cmodel ) );
 
     try {
-        if ( nameSP != 0 && std::string( nameSP ) == "nodefault" ) {
-            nameSP = 0;
+        if ( nameCfg != 0 && std::string( nameCfg ) == "nodefault" ) {
+        	nameCfg = 0;
         }
 
         CTaskDef task;
@@ -84,12 +86,20 @@ int spc_compile(spc_model*   cmodel,
         pdlReader.setTaskData( &task );
         pdlReader.parseNetPDL( namePDL );
 
-        // Process custom protocols definition - software parser portion
-        if ( nameSP ) {
-            pdlReader.setSoftParse(1);
-            pdlReader.parseNetPDL( nameSP );
-            softparser(&task, nameSP, swOffset, genIntermCode);
+        // Process custom protocols definition - software parser
+		pdlReader.setSoftParse(1);
+		pdlReader.parseNetPDL( nameSP );
+
+		// Configuration file processing must be after SP was parsed
+        if (nameCfg) {
+            // Process configuration file
+            ConfigReader cfgReader;
+            cfgReader.setTaskData( &task );
+            cfgReader.parseConfig( nameCfg );
         }
+
+        //call soft parser
+		softparser(&task, nameSP, swOffset, genIntermCode);
 
         CFMCModel model;
         LOG( logger::DBG1 ) << logger::ind( 2 )

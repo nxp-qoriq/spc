@@ -512,8 +512,6 @@ class CTaskDef
     CTaskDef();
     ~CTaskDef();
 
-    bool checkSemantics();
-
     bool FieldExists       ( const std::string fullFieldName) const;
     bool GetFieldProperties( const std::string fullFieldName,
                              uint32_t&         bitSize,
@@ -524,6 +522,7 @@ class CTaskDef
     void dumpSpParsed   (std::string path);
 
     uint32_t getBaseAddresss();
+    void enableProtocolOnInit(std::string protocol_name, std::string engine_name);
 
 };
 

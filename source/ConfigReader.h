@@ -22,41 +22,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * File Name : PDLReader.h
+ * File Name : ConfigReader.h
  *
  * ===================================================================*/
 
-#ifndef PDLREADER_H
-#define PDLREADER_H
+#ifndef CFGREADER_H
+#define CFGREADER_H
 
 #include <libxml/parser.h>
 #include "TaskDef.h"
 
-
-class CPDLReader {
+class ConfigReader {
 public:
-    CPDLReader();
-
+	ConfigReader();
     void setTaskData( CTaskDef* pTaskData );
-    void parseNetPDL( std::string filename );
-    void setSoftParse( bool newSoftParse );
-    bool getSoftParse () const;
+    void parseConfig( std::string filename );
 
-    void parseProtocol     (CProtocol* protocol, xmlNodePtr pNode );
-    void parseExecute      (CProtocol* protocol, xmlNodePtr pNode );
-    void parseExecuteSection(CExecuteSection* executeSection, xmlNodePtr pNode, bool virtualSection=0);
-    void parseExecuteAction(CExecuteAction* executeAction, xmlNodePtr pNode );
-    void parseExecuteAssign(CExecuteAssign* executeAssign, xmlNodePtr pNode );
-    void parseExecuteCase  (CExecuteCase*   executeCase,   xmlNodePtr pNode );
-    void parseExecuteIf    (CExecuteIf*     executeIf,     xmlNodePtr pNode );
-    void parseExecuteLoop  (CExecuteLoop*   executeLoop,   xmlNodePtr pNode );
-    void parseExecuteInline(CExecuteInline* executeInline, xmlNodePtr pNode );
-    void parseExecuteSwitch(CExecuteSwitch* executeSwitch, xmlNodePtr pNode );
-    void parseExecuteSetresetfaf (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode );
-    void parseFormat       (CProtocol* protocol, xmlNodePtr pNode );
-    void parseBlock        (CProtocol* protocol, xmlNodePtr pNode );
-    void parseFields       (CProtocol* protocol, xmlNodePtr pNode );
-    void parseField        (CField* field,       xmlNodePtr pNode );
+    void parseSoc     	   (xmlNodePtr pNode );
+    void parseMemorymap	   (xmlNodePtr pNode);
+    void parseBytecode     (CCodeSection* engine, xmlNodePtr pNode );
+    void parseParameters   (xmlNodePtr pNode );
+    void parseParameter    (CParameter* param, xmlNodePtr pNode );
+    void parseDevice       (xmlNodePtr pNode );
+    void parseDevEngine    (xmlNodePtr pNode );
 
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );
@@ -64,8 +52,8 @@ protected:
 
 private:
     CTaskDef* task;
-    bool      softParse;
     CGenericError error;
+    uint32_t  spParameterOffset;
 };
 
-#endif // PDLREADER_H
+#endif // CFGREADER_H

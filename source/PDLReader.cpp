@@ -35,7 +35,6 @@ using namespace logger;
 CPDLReader::CPDLReader ()
 {
     softParse = false;
-    spParameterOffset = 0;
 }
 
 void CPDLReader::setSoftParse( bool newSoftParse )
@@ -50,8 +49,7 @@ bool CPDLReader::getSoftParse() const
 
 
 // Aid function to retrieve XML element's attribute
-std::string
-CPDLReader::getAttr( xmlNodePtr pNode, const char* attr )
+std::string CPDLReader::getAttr( xmlNodePtr pNode, const char* attr )
 {
     char* pAttr = (char*)xmlGetProp( pNode, (const xmlChar*)attr );
     std::string retStr;
@@ -70,7 +68,6 @@ CPDLReader::getAttr( xmlNodePtr pNode, const char* attr )
 
     return (retStr.size() != 0) ? retStr : "";
 }
-
 
 void CPDLReader::checkUnknownAttr ( xmlNodePtr pNode, int num, ...)
 {
@@ -99,8 +96,7 @@ void CPDLReader::checkUnknownAttr ( xmlNodePtr pNode, int num, ...)
 }
 
 
-void
-CPDLReader::setTaskData( CTaskDef* pTaskData )
+void CPDLReader::setTaskData( CTaskDef* pTaskData )
 {
     task = pTaskData;
 }
@@ -169,10 +165,6 @@ CPDLReader::parseNetPDL( std::string filename )
             CProtocol protocol;
             parseProtocol( &protocol, cur );
             task->protocols.push_back( protocol );
-        }
-        //soc
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"soc" ) ) {
-        	parseSoc(cur);
         }
         // visualization
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"visualization" ) ) {
@@ -269,10 +261,6 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
         // format
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"format" ) ) {
             parseFormat( protocol, cur );
-        }
-        // device
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"device" ) ) {
-            parseDevice( protocol, cur );
         }
         // encapsulation
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"encapsulation" ) ) {
@@ -966,218 +954,4 @@ CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,
 
 	if (executeSetresetfaf->name == "")
 		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeSetresetfaf->line, "faf");
-}
-
-void CPDLReader::parseSoc(xmlNodePtr pNode)
-{
-    // Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"soc" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    LOG( DBG1 ) << ind(2) << "Parsing of XML node 'soc' named: '"
-                << getAttr( pNode, "name" )
-                << "' ... " << std::endl;
-
-    // Get known attributes
-    task->soc_name = getAttr(pNode, "name");
-    task->soc_rev = getAttr(pNode, "rev");
-
-    checkUnknownAttr(pNode, 2, "name", "rev");
-
-    // Parse children nodes
-    xmlNodePtr cur = pNode->xmlChildrenNode;
-    while ( 0 != cur ) {
-
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"bytecode" ) ) {
-        	CCodeSection code;
-        	parseBytecode( &code, cur );
-            task->program.push_back(code);
-        }
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameters" ) ) {
-        	parseParameters( cur );
-        }
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameter" ) ) {
-        	CParameter param;
-        	parseParameter( &param, cur );
-            task->parameters.push_back(param);
-        }
-        else {
-            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
-                                          xmlGetLineNo(cur), (char*)cur->name);
-        }
-
-        cur = cur->next;
-    }
-}
-
-void CPDLReader::parseBytecode(CCodeSection* engine, xmlNodePtr pNode )
-{
-    // Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"bytecode" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    LOG( DBG1 ) << ind(2) << "Parsing of XML node 'bytecode' at offset: '"
-                << getAttr( pNode, "offset" )
-                << "' ... " << std::endl;
-
-    // Get known attributes
-    std::string sOffset = getAttr(pNode, "offset");
-    if (sOffset.compare("auto") == 0) {
-    	engine->swOffset = ASSEMBLER_BASE;
-    }
-    else {
-    	engine->swOffset = strtol(sOffset.c_str(), NULL, 16);
-    }
-
-    checkUnknownAttr(pNode, 1, "offset");
-
-    // Parse children nodes
-    xmlNodePtr cur = pNode->xmlChildrenNode;
-    while ( 0 != cur ) {
-
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"engines" ) ) {
-        	//TODO
-        }
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"protocols" ) ) {
-        	//TODO
-        }
-        else {
-            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
-                                          xmlGetLineNo(cur), (char*)cur->name);
-        }
-
-        cur = cur->next;
-    }
-}
-
-void CPDLReader::parseParameters(xmlNodePtr pNode )
-{
-    // Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"parameters" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    LOG( DBG1 ) << ind(2) << "Parsing of XML node 'parameters' '"
-                << "' ... " << std::endl;
-
-    // Parse children nodes
-    xmlNodePtr cur = pNode->xmlChildrenNode;
-    while ( 0 != cur ) {
-
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameter" ) ) {
-        	CParameter param;
-        	parseParameter( &param, cur );
-            task->parameters.push_back(param);
-        }
-        else {
-            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
-                                          xmlGetLineNo(cur), (char*)cur->name);
-        }
-
-        cur = cur->next;
-    }
-}
-
-void CPDLReader::parseParameter(CParameter* param, xmlNodePtr pNode )
-{
-    // Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"parameter" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    LOG( DBG1 ) << ind(2) << "Parsing of XML node 'parameter' named: '"
-                << getAttr( pNode, "name" )
-                << "' ... " << std::endl;
-
-    // Get known attributes
-    param->name = getAttr(pNode, "name");
-    param->protocol = getAttr(pNode, "protocol");
-
-    std::string sOffset = getAttr(pNode, "offset");
-    if (sOffset.compare("auto") == 0) {
-    	param->offset = spParameterOffset;
-    }
-    else {
-    	if (sOffset.compare(0, 2, "0x") == 0)
-    		param->offset = strtol(sOffset.c_str(), NULL, 16);
-    	else
-    		param->offset = strtol(sOffset.c_str(), NULL, 10);
-    }
-    spParameterOffset = param->offset;
-
-    std::string sSize = getAttr(pNode, "size");
-	if (sSize.compare(0, 2, "0x") == 0)
-		param->size = strtol(sSize.c_str(), NULL, 16);
-	else
-		param->size = strtol(sSize.c_str(), NULL, 10);
-	spParameterOffset += param->size;
-
-	std::string sType = getAttr(pNode, "type");
-	if (sType.compare("read-only") == 0)
-		param->readOnly = true;
-	else
-		param->readOnly = false;
-
-	std::string sValue = getAttr(pNode, "value");
-	memset(param->value, 0, PRS_PARAM_SIZE);
-	if (sValue.compare("auto") == 0) {
-		memset(param->value, 0, PRS_PARAM_SIZE);
-	}
-	else {
-		if (sValue.compare(0, 2, "0x") == 0) {
-			for (int i = 0; i < (sValue.size()-2)/2; i++) {
-				std::string str = sValue.substr(2 + i*2, 2);
-				param->value[i] = strtol(str.c_str(), NULL, 16);
-			}
-		}
-		else {
-			param->value[0] = strtol(sValue.c_str(), NULL, 10);
-		}
-	}
-
-    checkUnknownAttr(pNode, 6, "name", "protocol", "offset", "size", "value", "type");
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// CPDLReader::parseDevice
-// Process the 'device' node of the NetPDL
-/////////////////////////////////////////////////////////////////////////////
-void CPDLReader::parseDevice( CProtocol* protocol, xmlNodePtr pNode )
-{
-    // Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"device" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    checkUnknownAttr(pNode, 0);
-
-    // Parse children nodes
-    xmlNodePtr cur = pNode->xmlChildrenNode;
-    while ( 0 != cur ) {
-        // engine
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"engine" ) ) {
-        	parseDevEngine( protocol, cur );
-        }
-        // other
-        else {
-            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
-                                          xmlGetLineNo(cur), (char*)cur->name);
-        }
-
-        cur = cur->next;
-    }
-}
-
-void CPDLReader::parseDevEngine(CProtocol* protocol, xmlNodePtr pNode)
-{
-	// Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"engine" ) ) {
-        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
-    }
-
-    std::string value = stripBlanks((const char*)pNode->children->content);
-
-    protocol->engines.push_back(value);
 }

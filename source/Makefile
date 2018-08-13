@@ -95,9 +95,9 @@ default: libspc.a spc
 endif
 
 objects = ./libspc.o                                                    \
-     ./PDLReader.o                                                   \
+     ./PDLReader.o ./ConfigReader.o                                                   \
      ./SPCreateCode.o ./SPDumpCode.o ./SPDumpIR.o              \
-     ./SPDumpParse.o ./SPIR.o ./PDLReader.o                    \
+     ./SPDumpParse.o ./SPIR.o                        \
      ./SPReviseCode.o ./SPReviseIR.o ./SoftParser.o                    \
      ./SPExpr.o ./SPExprLexer.o                                   \
      ./SPModel.o                                                    \
@@ -106,7 +106,7 @@ objects = ./libspc.o                                                    \
      ./spa/sp_private.o ./spa/htbl.o ./spa/lex._sp_assembler_yy.o
 
 headers = spc.h GenericError.h \
-          SPModel.h PDLReader.h SoftParser.h      \
+          SPModel.h PDLReader.h ConfigReader.h SoftParser.h      \
           SPCreateCode.h SPIR.h TaskDef.h Utils.h      \
           SPExpr.hpp logger.hpp 
 
