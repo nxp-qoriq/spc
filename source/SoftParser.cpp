@@ -326,6 +326,7 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     std::map< ProtoType, std::string> protocolsLabels;
 
     protocolsLabels[PT_NONE]      = "NET_PROT_NONE";
+    protocolsLabels[PT_SP_PROTOCOL] = "NET_PROT_USER_DEFINED_SHIM1";
     protocolsLabels[PT_ETH]       = "NET_PROT_ETH";
     protocolsLabels[PT_LLC_SNAP]  = "NET_PROT_SNAP";
     protocolsLabels[PT_VLAN]      = "NET_PROT_VLAN";
@@ -426,6 +427,11 @@ Bit 29: load to AIOP (parser memory as ingress soft parser)
 
 #define BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME	256
 
+//TODO: called from another SP:
+//TODO: what value to use here (is not specified in latest document version) ???
+#define BLOB_BASE_PROTO_ANOTHER_SP				0x81
+
+
 //TODO
 //0x80: 1st header in frame
 //0x81: Called from another SP
@@ -486,6 +492,9 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 	{
 	case PT_NONE:
 		base_proto = BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME;
+		break;
+	case PT_SP_PROTOCOL:
+		base_proto = BLOB_BASE_PROTO_ANOTHER_SP;
 		break;
 	case PT_ETH:
 		base_proto = BLOB_BASE_PROTO_ETHERNET;

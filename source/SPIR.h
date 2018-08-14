@@ -585,6 +585,8 @@ class CIR
     void createIRFWAccess           (std::string name, CObject *object, int line);
     void createIRProtocolField      (std::string name, CObject *object, int line);
     void createIRField              (std::string name, CObject *object, int line);
+    bool findSpProtocol				(std::string nextproto, int line) const;
+    std::string findSpProtoLabel 	(std::string nextproto, int line) const;
     ProtoType findProtoLabel        (std::string nextproto, int line) const;
     ProtoType findSpecificProtocol  (std::string newName,   int line) const;
     void getBufferInfo              (std::string &name,     uint32_t &startByte, uint32_t &sizeByte, int line, bool bits);

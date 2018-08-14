@@ -66,10 +66,21 @@ void CIR::createIR ()
             protoIR.statements.push_back(statement);
 
             // For each protocol name, find corresponding ProtoType
+            ProtoType pt;
             for ( uint32_t k = 0; k < protoIR.protocol.prevproto.size(); k++ )
             {
-                protoIR.protocol.prevType.push_back( findSpecificProtocol
-                    (protoIR.protocol.prevproto[k], protoIR.protocol.line) );
+            	//try to find HW protocol
+            	pt = findSpecificProtocol(protoIR.protocol.prevproto[k], protoIR.protocol.line);
+            	if (pt == PT_INVALID) {
+            		//try to find SP protocol
+            		if (findSpProtocol(protoIR.protocol.prevproto[k], protoIR.protocol.line)) {
+            			pt = PT_SP_PROTOCOL;
+            		} else {
+            			//protocol not found
+            			throw CGenericErrorLine (ERR_UNSUPPORTED_PROTOCOL, protoIR.protocol.line, protoIR.protocol.prevproto[k]);
+            		}
+            	}
+                protoIR.protocol.prevType.push_back(pt);
             }
 
             protocolsIRs.push_back(protoIR);
@@ -548,17 +559,34 @@ void CIR::createIRAction (CExecuteAction action, std::vector<CStatement> &statem
 {
     CStatement gStatement, eStatement;
     std::string actionTypeName = action.type;
-    ProtoType pt;
+    ProtoType pt = PT_INVALID;
 
     if (action.type == "exit")
     {
-        std::string labelName;
         /*either exit to a specific protocol or return to HXS*/
-        if (action.nextproto.length() != 0)
-            pt = findProtoLabel(action.nextproto, action.line);
-        else
+        if (action.nextproto.length() != 0) {
+
+			//try to find HW protocol
+			pt = findProtoLabel(action.nextproto, action.line);
+			if (pt != PT_INVALID) {
+				gStatement.createGotoStatement(pt);
+			}
+			else {
+	        	//try to find SP protocol
+				std::string labelName = findSpProtoLabel(action.nextproto, action.line);
+	        	if (labelName.length() > 0) {
+	        		gStatement.createGotoStatement(labelName);
+	        	}
+	        	else {
+	        		//protocol not found
+	        		throw CGenericErrorLine (ERR_UNSUPPORTED_PROTOCOL, action.line, action.nextproto);
+	        	}
+			}
+        }
+        else {
             pt = PT_RETURN;
-        gStatement.createGotoStatement(pt);
+            gStatement.createGotoStatement(pt);
+        }
 
         /* we should update HB and WO before exiting and therefore we
            add the flag and header size*/
@@ -993,6 +1021,7 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
     switch (pt)
     {
     	case PT_NONE:       lookForRAType = RA_EMPTY;       	break;
+    	case PT_SP_PROTOCOL:lookForRAType = RA_EMPTY;       	break;
     	case PT_ETH:        lookForRAType = RA_ETHOFFSET;       break;
         case PT_VLAN:       lookForRAType = RA_VLANTCIOFFSET_N; break;
         case PT_LLC_SNAP:   lookForRAType = RA_LLC_SNAPOFFSET;  break;
@@ -1024,6 +1053,33 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
 		if (!eCode)
 			throw CGenericError (ERR_INTERNAL_SP_ERROR);
     }
+}
+
+/*Find a SP Protocol */
+bool CIR::findSpProtocol(std::string nextproto, int line) const
+{
+	for (int i = 0; i < protocolsIRs.size(); i++)
+    {
+    	if (nextproto.compare(protocolsIRs[i].protocol.name) == 0) {
+    		return true;
+    	}
+    }
+	return false;
+}
+
+/*Find a SP Protocol label */
+std::string CIR::findSpProtoLabel(std::string nextproto, int line) const
+{
+	std::string label = "";
+
+	for (int i = 0; i < protocolsIRs.size(); i++)
+    {
+    	if (nextproto.compare(protocolsIRs[i].protocol.name) == 0) {
+    		label = protocolsIRs[i].label.name;
+    		break;
+    	}
+    }
+	return label;
 }
 
 /*Find a protocol*/
@@ -1083,7 +1139,7 @@ ProtoType CIR::findSpecificProtocol(std::string name, int line) const
 
     protocolsLabelsIterator = protocolsLabels.find(newName);
     if (protocolsLabelsIterator == protocolsLabels.end())
-        throw CGenericErrorLine (ERR_UNSUPPORTED_PROTOCOL, line, name);
+    	return PT_INVALID; 	//throw CGenericErrorLine (ERR_UNSUPPORTED_PROTOCOL, line, name);
     else
         return protocolsLabels[newName];
 }

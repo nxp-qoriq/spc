@@ -1712,7 +1712,7 @@
 	</format>
 </protocol>
 
-<protocol name="gtpu" longname="GTP-U" prevproto="udp">
+<protocol name="gtp" longname="GTP (GPRS Tunnelling Protocol)" >
 	<format>
 		<fields>
 			<field type="bit" name="version" mask="0xE0" size="1" />

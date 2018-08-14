@@ -82,7 +82,7 @@ typedef enum ExecuteSectionType {
 
 
 typedef enum ProtoType {
-    PT_NONE,   			/* Used to invoke SP before HW Parser: before Ethernet */
+	PT_INVALID,
     PT_ETH,
     PT_LLC_SNAP,
     PT_VLAN,
@@ -111,7 +111,9 @@ typedef enum ProtoType {
 	PT_OTHER_L5,
 	PT_FINAL_SHELL,
     PT_RETURN,
-    PT_END_PARSE
+    PT_END_PARSE,
+    PT_NONE,   			/* Used to invoke SP before HW Parser: before Ethernet */
+    PT_SP_PROTOCOL,		/* Another Soft Parser Protocol */
 } ProtoType;
 
 class CField

@@ -118,6 +118,7 @@ enum net_prot CFMCModel::getHeaderType( std::string protoname )
     net_types[ "vlan" ]      = NET_PROT_VLAN;
     net_types[ "llc_snap" ]  = NET_PROT_LLC_SNAP;
     net_types[ "mpls" ]      = NET_PROT_MPLS;
+    net_types[ "arp" ]         = NET_PROT_ARP;
     net_types[ "ipv4" ]      = NET_PROT_IPV4;
     net_types[ "ipv6" ]      = NET_PROT_IPV6;
     net_types[ "ip" ]        = NET_PROT_IP;
@@ -132,11 +133,16 @@ enum net_prot CFMCModel::getHeaderType( std::string protoname )
     net_types[ "ipsec_esp" ] = NET_PROT_IPSEC_ESP;
 	net_types[ "otherl3" ]     = NET_PROT_USER_DEFINED_L3;
 	net_types[ "otherl4" ]     = NET_PROT_USER_DEFINED_L4;
+	net_types[ "otherl5" ]     = NET_PROT_USER_DEFINED_L5;
     net_types[ "shim1" ]     = NET_PROT_USER_DEFINED_SHIM1;
     net_types[ "shim2" ]     = NET_PROT_USER_DEFINED_SHIM2;
 #ifdef FM_SHIM3_SUPPORT
     net_types[ "shim3" ]     = NET_PROT_USER_DEFINED_SHIM3;
 #endif /* FM_SHIM3_SUPPORT */
+    net_types[ "gtp" ]          = NET_PROT_GTP;
+    //TODO: non existent in net_prot:
+    //net_types[ "esp" ]          = NET_PROT_ESP;
+    //net_types[ "finalshell" ]   = NET_PROT_FINAL_SHELL;
 
 
     if ( net_types.find( protoname ) != net_types.end() ) {
