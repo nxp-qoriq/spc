@@ -289,7 +289,7 @@ void CSoftParseResult::dumpHeader(std::string path) const
     for (i = 0; i < numOfLabels; i++)
     {
         dumpFile << "        {                                                  \\"
-        << endl  << "            " << "0x" << hex << labelsTable[i].position
+        << endl  << "            " << "0x" << hex << (2 * labelsTable[i].position)
                  <<              ",                       /*offset*/         \\"
         << endl  << "            " << externProtoName(labelsTable[i].prevType[0])
                  <<              ",           /*prevProto*/      \\"
@@ -348,7 +348,7 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     protocolsLabels[PT_OTHER_L4]  = "NET_PROT_USER_DEFINED_L4";
 	protocolsLabels[PT_OTHER_L5]  = "NET_PROT_USER_DEFINED_L5";
 	protocolsLabels[PT_GTP]       = "NET_PROT_GTP";
-	protocolsLabels[PT_ESP]       = "NET_PROT_IPSEC_ESP";
+	protocolsLabels[PT_ESP]       = "NET_PROT_UDP_ENC_ESP";
 	//TODO: not supported in mc net header net.h:
 	//protocolsLabels[PT_FINAL_SHELL]  = "HEADER_TYPE_FINAL_SHELL";
 
@@ -787,7 +787,7 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		blob_write8(dumpFile, 0);
 
 		/* Seq start entry point (2) */
-		blob_write_cpu_to_le16(dumpFile, (uint16_t)labelsTable[i].position);
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * labelsTable[i].position));
 
 		/* Base protocol (4) */
 		blob_write_cpu_to_le32(dumpFile, blob_get_base_protocol(labelsTable[i].prevType[0]));
