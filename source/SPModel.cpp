@@ -99,8 +99,13 @@ void CFMCModel::createSoftParse( const CTaskDef* pTaskDef )
 				swPrs.labelsTable[i].hdr = getHeaderType( shim_protocol );
 			}
 			else {
-				// Header type NET_PROT_DUMMY_LAST is not accepted as a valid value
-				throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
+				if (pTaskDef->findSpProtocol(taskSpr.labelsTable[i].prevNames[0])) {
+					//TODO: should find correct protocol layer (for header type)
+					swPrs.labelsTable[i].hdr = NET_PROT_USER_DEFINED_L2;
+				} else {
+					// Header type NET_PROT_DUMMY_LAST is not accepted as a valid value
+					throw CGenericError( ERR_UNKNOWN_PROTOCOL, taskSpr.labelsTable[i].prevNames[0] );
+				}
 			}
 		}
 	}

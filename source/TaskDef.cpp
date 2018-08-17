@@ -146,6 +146,17 @@ CTaskDef::getShimNoFromCustom( const std::string protocol_name ) const
     return result;
 }
 
+bool CTaskDef::findSpProtocol(std::string protocol_name) const
+{
+	for (int i = 0; i < protocols.size(); i++)
+    {
+    	if (protocol_name.compare(protocols[i].name) == 0) {
+    		return true;
+    	}
+    }
+	return false;
+}
+
 
 /*Gets the size of the protocol's header according to its fields*/
 bool

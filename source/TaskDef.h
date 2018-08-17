@@ -520,6 +520,7 @@ class CTaskDef
                              uint32_t&         bitSize,
                              uint32_t&         bitOffset ) const;
     std::string getShimNoFromCustom( const std::string protocol_name ) const;
+    bool findSpProtocol(std::string protocol_name) const;
 
     void deleteExecute  ();
     void dumpSpParsed   (std::string path);

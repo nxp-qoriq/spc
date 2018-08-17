@@ -326,7 +326,6 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     std::map< ProtoType, std::string> protocolsLabels;
 
     protocolsLabels[PT_NONE]      = "NET_PROT_NONE";
-    protocolsLabels[PT_SP_PROTOCOL] = "NET_PROT_USER_DEFINED_SHIM1";
     protocolsLabels[PT_ETH]       = "NET_PROT_ETH";
     protocolsLabels[PT_LLC_SNAP]  = "NET_PROT_SNAP";
     protocolsLabels[PT_VLAN]      = "NET_PROT_VLAN";
@@ -352,6 +351,9 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 	//TODO: not supported in mc net header net.h:
 	//protocolsLabels[PT_FINAL_SHELL]  = "HEADER_TYPE_FINAL_SHELL";
 
+	//TODO: should find correct protocol layer (for generated header file)
+    protocolsLabels[PT_SP_PROTOCOL] = "NET_PROT_USER_DEFINED_L2";
+
     protocolsLabelsIterator = protocolsLabels.find(type);
     if (protocolsLabelsIterator == protocolsLabels.end())
         throw CGenericError (ERR_INTERNAL_SP_ERROR, "Unrecognized Protocol");
@@ -370,13 +372,11 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
  * There are 3 SP memories available:
 Bit 31: load to WRIOP INGRESS parser memory
 Bit 30: load to WRIOP EGRESS parser memory
-Bit 29: load to AIOP (parser memory as ingress soft parser)
-// ??? -> Bit 28: load to AIOP parser memory as egress soft parser - this doesn't exists...
+Bit 29: load to AIOP parser memory
  */
 #define LOAD_IN_WRIOP_INGRESS		0x80000000
 #define LOAD_IN_WRIOP_EGRESS		0x40000000
-#define LOAD_IN_AIOP_INGRESS		0x20000000
-//#define LOAD_IN_AIOP_EGRESS			0x10000000
+#define LOAD_IN_AIOP				0x20000000
 
 
 /* Profile configuration */
@@ -676,7 +676,7 @@ void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
 	//		for now: load in all where are enabled
 	flags = 0;
 	//TODO: this prototype version loads code in ALL parsers for now
-	flags |= (LOAD_IN_WRIOP_INGRESS | LOAD_IN_WRIOP_EGRESS | LOAD_IN_AIOP_INGRESS);
+	flags |= (LOAD_IN_WRIOP_INGRESS | LOAD_IN_WRIOP_EGRESS | LOAD_IN_AIOP);
 
 	if (size % 4) {
 		pad_size = 4 * (size / 4 + 1) - size;
