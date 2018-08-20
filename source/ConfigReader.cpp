@@ -242,9 +242,11 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
 
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-on-parser" ) ) {
         	//TODO: support several bytecode sections
+        	CGenericError::printWarning(WARN_UNSUPPORTED, (char*)cur->name);
         }
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-protocol" ) ) {
         	//TODO: support several bytecode sections
+        	CGenericError::printWarning(WARN_UNSUPPORTED, (char*)cur->name);
         }
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,

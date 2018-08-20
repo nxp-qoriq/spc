@@ -369,6 +369,10 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 #define BLOB_MAGIC_ID			0x53504243	/* SPBC */
 #define BLOB_VER				0x01000000
 
+#define SP_HW_REV_MAJOR		3
+#define SP_HW_REV_MINOR		2
+
+
 /*
  * There are 3 SP memories available:
 Bit 31: load to WRIOP INGRESS parser memory
@@ -392,15 +396,13 @@ Bit 29: load to AIOP parser memory
 #define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
 #define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
 #define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
-#define HW_ACCEL_AIOP				"aiop"		// AIOP ingress and egress
-#define HW_ACCEL_ALL				"ALL"		// All of the above
+#define HW_ACCEL_AIOP				"aiop"
 
 
 #define PARAM_TYPE_READ_ONLY		0x01
 
 
-//TODO: update to latest doc - aici trebuie modificat la valori: 1, 2, 3, 4...
-	// Alex e de acord sa inceapa Eth de la 1 (nu de la 0)
+#define BLOB_BASE_PROTO_INVALID					0
 #define BLOB_BASE_PROTO_ETHERNET				1
 #define BLOB_BASE_PROTO_LLC_SNAP				2
 #define BLOB_BASE_PROTO_VLAN					3
@@ -425,16 +427,6 @@ Bit 29: load to AIOP parser memory
 #define BLOB_BASE_PROTO_LAYER_5					30
 #define BLOB_BASE_PROTO_FINAL_HEADER			31
 #define BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME	256
-
-//TODO: called from another SP:
-//TODO: what value to use here (is not specified in latest document version) ???
-#define BLOB_BASE_PROTO_ANOTHER_SP				0x81
-
-
-//TODO
-//0x80: 1st header in frame
-//0x81: Called from another SP
-
 
 
 static inline uint16_t SwapUint16(uint16_t val)
@@ -484,7 +476,7 @@ void CSoftParseResult::blob_write8(std::ofstream &dumpFile, uint8_t val)
 
 uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 {
-	uint32_t base_proto = 0;
+	uint32_t base_proto = BLOB_BASE_PROTO_INVALID;
 
 	//TODO: update protocols
 	switch (prevType)
@@ -493,7 +485,7 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 		base_proto = BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME;
 		break;
 	case PT_SP_PROTOCOL:
-		base_proto = BLOB_BASE_PROTO_ANOTHER_SP;
+		base_proto = BLOB_BASE_PROTO_INVALID;
 		break;
 	case PT_ETH:
 		base_proto = BLOB_BASE_PROTO_ETHERNET;
@@ -564,16 +556,10 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 		base_proto = BLOB_BASE_PROTO_VxLAN;
 		break;
 	case PT_NEXT_ETH:
-		base_proto = 0;
-		break;
 	case PT_NEXT_IP:
-		base_proto = 0;
-		break;
 	case PT_NEXT_TCP:
-		base_proto = 0;
-		break;
 	case PT_NEXT_UDP:
-		base_proto = 0;
+		base_proto = BLOB_BASE_PROTO_INVALID;
 		break;
 	case PT_OTHER_L5:
 		base_proto = BLOB_BASE_PROTO_LAYER_5;
@@ -582,10 +568,11 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 		base_proto = BLOB_BASE_PROTO_FINAL_HEADER;
 		break;
 	case PT_RETURN:
-		base_proto = 0;
-		break;
 	case PT_END_PARSE:
-		base_proto = 0;
+		base_proto = BLOB_BASE_PROTO_INVALID;
+		break;
+	default:
+		base_proto = BLOB_BASE_PROTO_INVALID;
 		break;
 	}
 	return base_proto;
@@ -597,8 +584,8 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 	uint32_t sp_rev;
 
 	//DEFAULT SoftParser Rev:
-	uint32_t sp_rev_major = 3;
-	uint32_t sp_rev_minor = 2;
+	uint32_t sp_rev_major = SP_HW_REV_MAJOR;
+	uint32_t sp_rev_minor = SP_HW_REV_MINOR;
 
 	if (task->soc_name.compare(0, 3, "LS2") == 0) {
 		sp_rev_major = 3;
@@ -719,8 +706,18 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 	uint8_t	flags, nameSize;
 	char profile_name[9];
 
-	/* Number of profiles configured */
-	profile_cfg = numOfLabels;
+	/* Count the number of profiles configured */
+	profile_cfg = 0;
+	for (i = 0; i < numOfLabels; i++)
+	{
+		uint32_t baseProtocol = blob_get_base_protocol(labelsTable[i].prevType[0]);
+
+		//skip invalid protocols
+		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
+			continue;
+
+		profile_cfg++;
+	}
 
 	/* Calculate Section Size */
 	sect_size = 16 +				/* Size (4) + TAG (4) + Reserved (8) */
@@ -737,8 +734,14 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 	blob_write_cpu_to_le32(dumpFile, 0);
 
 	/* Profiles configuration */
-	for (i = 0; i < profile_cfg; i++)
+	for (i = 0; i < numOfLabels; i++)
 	{
+		uint32_t baseProtocol = blob_get_base_protocol(labelsTable[i].prevType[0]);
+
+		//skip invalid protocols
+		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
+			continue;
+
 		/* Profiles cfg - name (8) */
 		memset(profile_name, 0, 9);
 
@@ -775,10 +778,6 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 			else if (parser.compare(HW_ACCEL_AIOP) == 0) {
 				flags |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
 			}
-			else if (parser.compare(HW_ACCEL_ALL) == 0) {
-				flags |= (ENABLE_ON_WRIOP_INGRESS | ENABLE_ON_WRIOP_EGRESS |
-							ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
-			}
 	    }
 		blob_write8(dumpFile, flags);
 
@@ -789,7 +788,7 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * labelsTable[i].position));
 
 		/* Base protocol (4) */
-		blob_write_cpu_to_le32(dumpFile, blob_get_base_protocol(labelsTable[i].prevType[0]));
+		blob_write_cpu_to_le32(dumpFile, baseProtocol);
 	}
 
 	//Update blob size
