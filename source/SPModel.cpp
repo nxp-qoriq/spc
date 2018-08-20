@@ -146,6 +146,7 @@ enum net_prot CFMCModel::getHeaderType( std::string protoname )
 #endif /* FM_SHIM3_SUPPORT */
     net_types[ "gtp" ]          = NET_PROT_GTP;
     //TODO: non existent in net_prot:
+    //net_types[ "vxlan" ]      = NET_PROT_VxLAN;
     //net_types[ "esp" ]          = NET_PROT_ESP;
     //net_types[ "finalshell" ]   = NET_PROT_FINAL_SHELL;
 

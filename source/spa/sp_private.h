@@ -178,6 +178,7 @@
 #define _SP_OTH_L4_HXS_LABEL        "OTH_L4_HXS"
 #define _SP_GTP_HXS_LABEL           "GTP_HXS"
 #define _SP_ESP_HXS_LABEL           "ESP_HXS"
+#define _SP_VxLAN_HXS_LABEL         "VxLAN_HXS"
 #define _SP_OTH_L5_HXS_LABEL		"OTH_L5_HXS"
 #define _SP_FINAL_SHELL_HXS_LABEL	"FINAL_SHELL"
 #define _SP_RETURN_HXS_LABEL        "RETURN_HXS"
@@ -203,6 +204,7 @@
 #define _SP_OTH_L4_HXS        0x011
 #define _SP_GTP_HXS			  0x012
 #define _SP_ESP_HXS			  0x013
+#define _SP_VxLAN_HXS		  0x014
 #define _SP_OTH_L5_HXS		  0x01e
 #define _SP_FINAL_SHELL_HXS	  0x01f
 #define _SP_RETURN_HXS        0x7fe

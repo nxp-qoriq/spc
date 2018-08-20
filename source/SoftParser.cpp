@@ -350,6 +350,7 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 	protocolsLabels[PT_ESP]       = "NET_PROT_UDP_ENC_ESP";
 	//TODO: not supported in mc net header net.h:
 	//protocolsLabels[PT_FINAL_SHELL]  = "HEADER_TYPE_FINAL_SHELL";
+    //protocolsLabels[PT_VxLAN]      = "NET_PROT_VxLAN";
 
 	//TODO: should find correct protocol layer (for generated header file)
     protocolsLabels[PT_SP_PROTOCOL] = "NET_PROT_USER_DEFINED_L2";
@@ -400,30 +401,29 @@ Bit 29: load to AIOP parser memory
 
 //TODO: update to latest doc - aici trebuie modificat la valori: 1, 2, 3, 4...
 	// Alex e de acord sa inceapa Eth de la 1 (nu de la 0)
-#define BLOB_BASE_PROTO_ETHERNET		0x00000001
-#define BLOB_BASE_PROTO_LLC_SNAP		0x00000002
-#define BLOB_BASE_PROTO_VLAN			0x00000004
-#define BLOB_BASE_PROTO_PPPoE_PPP		0x00000008
-#define BLOB_BASE_PROTO_MPLS			0x00000010
-#define BLOB_BASE_PROTO_ARP				0x00000020
-#define BLOB_BASE_PROTO_IP				0x00000040
-#define BLOB_BASE_PROTO_IPv4			0x00000080
-#define BLOB_BASE_PROTO_IPv6			0x00000100
-#define BLOB_BASE_PROTO_GRE				0x00000200
-#define BLOB_BASE_PROTO_MINENC			0x00000400
-#define BLOB_BASE_PROTO_OTHER_LAYER_3	0x00000800
-#define BLOB_BASE_PROTO_TCP				0x00001000
-#define BLOB_BASE_PROTO_UDP				0x00002000
-#define BLOB_BASE_PROTO_IPSEC			0x00004000
-#define BLOB_BASE_PROTO_SCTP			0x00008000
-#define BLOB_BASE_PROTO_DCCP			0x00010000
-#define BLOB_BASE_PROTO_OTHER_LAYER_4	0x00020000
-#define BLOB_BASE_PROTO_GTP				0x00040000
-#define BLOB_BASE_PROTO_ESP				0x00080000
-#define BLOB_BASE_PROTO_VxLAN			0x00100000
-#define BLOB_BASE_PROTO_LAYER_5			0x00200000
-#define BLOB_BASE_PROTO_FINAL_HEADER	0x00400000
-
+#define BLOB_BASE_PROTO_ETHERNET				1
+#define BLOB_BASE_PROTO_LLC_SNAP				2
+#define BLOB_BASE_PROTO_VLAN					3
+#define BLOB_BASE_PROTO_PPPoE_PPP				4
+#define BLOB_BASE_PROTO_MPLS					5
+#define BLOB_BASE_PROTO_ARP						6
+#define BLOB_BASE_PROTO_IP						7
+#define BLOB_BASE_PROTO_IPv4					8
+#define BLOB_BASE_PROTO_IPv6					9
+#define BLOB_BASE_PROTO_GRE						10
+#define BLOB_BASE_PROTO_MINENC					11
+#define BLOB_BASE_PROTO_OTHER_LAYER_3			12
+#define BLOB_BASE_PROTO_TCP						13
+#define BLOB_BASE_PROTO_UDP						14
+#define BLOB_BASE_PROTO_IPSEC					15
+#define BLOB_BASE_PROTO_SCTP					16
+#define BLOB_BASE_PROTO_DCCP					17
+#define BLOB_BASE_PROTO_OTHER_LAYER_4			18
+#define BLOB_BASE_PROTO_GTP						19
+#define BLOB_BASE_PROTO_ESP						20
+#define BLOB_BASE_PROTO_VxLAN					21
+#define BLOB_BASE_PROTO_LAYER_5					30
+#define BLOB_BASE_PROTO_FINAL_HEADER			31
 #define BLOB_BASE_PROTO_FIRST_HEADER_IN_FRAME	256
 
 //TODO: called from another SP:
@@ -559,6 +559,9 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 		break;
 	case PT_ESP:
 		base_proto = BLOB_BASE_PROTO_ESP;
+		break;
+	case PT_VxLAN:
+		base_proto = BLOB_BASE_PROTO_VxLAN;
 		break;
 	case PT_NEXT_ETH:
 		base_proto = 0;

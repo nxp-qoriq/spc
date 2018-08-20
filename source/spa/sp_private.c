@@ -1500,6 +1500,10 @@ sp_error_code_t _sp_assembler_process_instructions (_sp_assembler_parser_context
              {
                 program_counter = _SP_ESP_HXS;
              }
+             else if (strcmp(instr_p->jump_label1_p, _SP_VxLAN_HXS_LABEL) == 0)
+             {
+                program_counter = _SP_VxLAN_HXS;
+             }
              else if (strcmp(instr_p->jump_label1_p, _SP_OTH_L5_HXS_LABEL) == 0)
              {
  				program_counter = _SP_OTH_L5_HXS;

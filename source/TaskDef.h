@@ -86,6 +86,7 @@ typedef enum ProtoType {
     PT_ETH,
     PT_LLC_SNAP,
     PT_VLAN,
+    PT_VxLAN,
     PT_PPPOE_PPP,
     PT_MPLS,
 	PT_ARP,

@@ -1447,6 +1447,7 @@ std::string CLabel::getProtocolOutputName ()  const
         case PT_ETH:        return "ETH_HXS";
         case PT_LLC_SNAP:   return "LLC_SNAP_HXS";
         case PT_VLAN:       return "VLAN_HXS";
+        case PT_VxLAN:      return "VxLAN_HXS";
         case PT_PPPOE_PPP:  return "PPPOE_PPP_HXS";
         case PT_MPLS:       return "MPLS_HXS";
 		case PT_ARP:		return "ARP_HXS";

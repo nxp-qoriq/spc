@@ -299,6 +299,7 @@ short CProtocol::ProtocolLayer(ProtoType      pt)
         case    PT_ETH:
         case    PT_LLC_SNAP:
         case    PT_VLAN:
+        case    PT_VxLAN:
         case    PT_PPPOE_PPP:
         case    PT_MPLS:
 		case    PT_ARP:

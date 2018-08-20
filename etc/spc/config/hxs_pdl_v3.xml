@@ -107,6 +107,17 @@
 </protocol>
 
 
+<protocol name="vxlan" longname="Virtual Extensible LAN" showsumtemplate="vxlan">
+	<format>
+		<fields>
+			<field type="fixed" name="flags"  longname="Flags" size="1"/>
+			<field type="fixed" name="reserved_1"  longname="Reserved" size="3"/>
+			<field type="fixed" name="vnid"  longname="VXLAN Segment ID/VXLAN Network Identifier" size="3"/>
+			<field type="fixed" name="reserved_2" longname="Reserved" size="1"/>
+		</fields>
+	</format>
+</protocol>
+
 
 <!-- LLC may have to be combined with SNAP, since this is how the parser see the header -->
 <protocol name="llc_snap" longname="IEEE 802.2 Logical Link Control" showsumtemplate="llc_snap">
@@ -1729,41 +1740,15 @@
 	
 	<execute-code>
 	<!-- Check that UDP port is 2152 -->
-		<before confirm="yes">
+		<before>
 			<if expr="udp.dport == 2152">
 				<if-true>
 				</if-true>
 				<if-false>
-					<!-- Confirms UDP layer and exits-->
-					<action type="exit" confirm="yes" advance="no" nextproto="return"/>
+					<action type="exit" advance="no" nextproto="return"/>
 				</if-false>
 			</if>
-		</before>
-		
-		<!-- Done after UDP layer is confirmed-->
-		<!--Check version and calculate length-->
-		<after confirm="no">
-			<if expr="version == 1">
-				<if-true>
-					<assign-variable name="$shimoffset_1" value="$NxtHdrOffset"/>
-				</if-true>
-				<if-false>
-					<assign-variable name="$ShimR" value="0x22+1"/>
-					<action type="exit" confirm="no" confirmcustom="no" nextproto="none"/>
-				</if-false>
-			</if>
-
-			<if expr="flags != 0">
-				<if-true>
-					<assign-variable name="$NxtHdrOffset" value="$shimoffset_1+12"/>
-				</if-true>
-				<if-false>
-					<assign-variable name="$NxtHdrOffset" value="$shimoffset_1+8"/>
-				</if-false>
-			</if>
-
-			<action type="exit" confirm="no" confirmcustom="shim1" nextproto="none"/>
-		</after>
+		</before>		
 	</execute-code>
 </protocol>
 
