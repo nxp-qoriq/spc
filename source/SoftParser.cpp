@@ -67,6 +67,9 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     pos = fileNoExt.find_last_of("/\\");
     baseName   = fileNoExt.substr(pos + 1, fileNoExt.length() - pos - 1);
 
+    bool debug_l2 = (LOG_GET_LEVEL() >= logger::DBG2);
+    bool debug_l3 = (LOG_GET_LEVEL() >= logger::DBG3);
+
     if (genIntermCode)
     {
         newIR.setDumpIr(baseName + ".ir");
@@ -75,15 +78,14 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
         task->dumpSpParsed(baseName + ".parsed");
     }
 
-    newIR.setDebug(false);
+    newIR.setDebug(debug_l3);
 
     /*Parse, create IR and create asm*/
     newIR.createIR(task);
     newCode.createCode(newIR);
 
     /*assemble*/
-    bool debug = LOG_GET_LEVEL() >= logger::DBG1;
-    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug, spBase);
+    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug_l2, spBase);
 
     /*return result*/
     std::vector <CExtension> extns;
@@ -95,8 +97,11 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     task->spr.setExtensions(extns);
     task->spr.setSize(actualCodeSize);
 
-    task->spr.dumpHeader(baseName + ".h");
-	task->spr.dumpBinary(baseName + ".bin");
+    if (genIntermCode)
+    {
+    	task->spr.dumpHeader(baseName + ".h");
+    	task->spr.dumpBinary(baseName + ".bin");
+    }
 	task->spr.dumpBlob(baseName + ".spb");
 
     /* Free memory*/
