@@ -375,7 +375,7 @@ class CProtocol
     std::vector< CField >      fields;
     CExecuteCode               executeCode;
 
-    std::vector< std::string > engines;
+    std::vector< std::string > parsers;
 
 };
 
@@ -417,7 +417,7 @@ class CCodeSection
 
 	public:
 		uint32_t		swOffset;
-		std::vector< std::string > engines;
+		std::vector< std::string > parsers;
 		std::vector< std::string > protocols;
 };
 
@@ -526,7 +526,7 @@ class CTaskDef
     void dumpSpParsed   (std::string path);
 
     uint32_t getBaseAddresss();
-    void enableProtocolOnInit(std::string protocol_name, std::string engine_name);
+    void enableProtocolOnInit(std::string protocol_name, std::string parser_name);
 
 };
 

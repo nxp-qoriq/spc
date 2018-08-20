@@ -214,7 +214,7 @@ void ConfigReader::parseMemorymap(xmlNodePtr pNode)
     }
 }
 
-void ConfigReader::parseBytecode(CCodeSection* engine, xmlNodePtr pNode )
+void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"bytecode" ) ) {
@@ -228,10 +228,10 @@ void ConfigReader::parseBytecode(CCodeSection* engine, xmlNodePtr pNode )
     // Get known attributes
     std::string sOffset = getAttr(pNode, "offset");
     if (sOffset.compare("auto") == 0) {
-    	engine->swOffset = ASSEMBLER_BASE;
+    	codeSection->swOffset = ASSEMBLER_BASE;
     }
     else {
-    	engine->swOffset = strtol(sOffset.c_str(), NULL, 16);
+    	codeSection->swOffset = strtol(sOffset.c_str(), NULL, 16);
     }
 
     checkUnknownAttr(pNode, 1, "offset");
@@ -240,7 +240,7 @@ void ConfigReader::parseBytecode(CCodeSection* engine, xmlNodePtr pNode )
     xmlNodePtr cur = pNode->xmlChildrenNode;
     while ( 0 != cur ) {
 
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-on-engine" ) ) {
+        if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-on-parser" ) ) {
         	//TODO: support several bytecode sections
         }
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-protocol" ) ) {
@@ -359,9 +359,9 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
     // Parse children nodes
     xmlNodePtr cur = pNode->xmlChildrenNode;
     while ( 0 != cur ) {
-        // engine
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"engine" ) ) {
-        	parseDevEngine( cur );
+        // parser
+        if ( !xmlStrcmp( cur->name, (const xmlChar*)"parser" ) ) {
+        	parseDevParser( cur );
         }
         // other
         else {
@@ -373,15 +373,15 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
     }
 }
 
-void ConfigReader::parseDevEngine(xmlNodePtr pNode)
+void ConfigReader::parseDevParser(xmlNodePtr pNode)
 {
 	// Make sure we process the right node
-    if ( xmlStrcmp( pNode->name, (const xmlChar*)"engine" ) ) {
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"parser" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
 
     // Get known attributes
-    std::string engine_name = getAttr(pNode, "name");
+    std::string parser_name = getAttr(pNode, "name");
     // = getAttr(pNode, "type");
 
     checkUnknownAttr(pNode, 1, "name");
@@ -396,7 +396,7 @@ void ConfigReader::parseDevEngine(xmlNodePtr pNode)
             std::string protocol_name = getAttr(pCrtNode, "protocol");
             checkUnknownAttr(pCrtNode, 1, "protocol");
 
-            task->enableProtocolOnInit(protocol_name, engine_name);
+            task->enableProtocolOnInit(protocol_name, parser_name);
 
         }
         // other

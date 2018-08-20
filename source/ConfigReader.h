@@ -40,11 +40,11 @@ public:
 
     void parseSoc     	   (xmlNodePtr pNode );
     void parseMemorymap	   (xmlNodePtr pNode);
-    void parseBytecode     (CCodeSection* engine, xmlNodePtr pNode );
+    void parseBytecode     (CCodeSection* codeSection, xmlNodePtr pNode );
     void parseParameters   (xmlNodePtr pNode );
     void parseParameter    (CParameter* param, xmlNodePtr pNode );
     void parseDevice       (xmlNodePtr pNode );
-    void parseDevEngine    (xmlNodePtr pNode );
+    void parseDevParser    (xmlNodePtr pNode );
 
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );

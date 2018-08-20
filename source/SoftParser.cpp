@@ -180,11 +180,11 @@ uint32_t CTaskDef::getBaseAddresss()
 	return program[0].swOffset;
 }
 
-void CTaskDef::enableProtocolOnInit(std::string protocol_name, std::string engine_name)
+void CTaskDef::enableProtocolOnInit(std::string protocol_name, std::string parser_name)
 {
 	for ( int i = 0; i < protocols.size(); i++ ) {
         if ( protocols[i].name == protocol_name ) {
-        	protocols[i].engines.push_back(engine_name);
+        	protocols[i].parsers.push_back(parser_name);
         	break;
         }
 	}
@@ -391,7 +391,6 @@ Bit 29: load to AIOP parser memory
 #define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
 #define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
 #define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
-#define HW_ACCEL_WRIOP				"wriop"		// WRIOP ingress and egress
 #define HW_ACCEL_AIOP				"aiop"		// AIOP ingress and egress
 #define HW_ACCEL_ALL				"ALL"		// All of the above
 
@@ -752,31 +751,28 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		/* Profiles cfg - flags (1) */
 		flags = 0;
 	    std::vector< std::string >::const_iterator it;
-	    for ( it = labelsTable[i].protocol.engines.begin();
-	          it != labelsTable[i].protocol.engines.end();
+	    for ( it = labelsTable[i].protocol.parsers.begin();
+	          it != labelsTable[i].protocol.parsers.end();
 	          ++it )
 	    {
-	    	std::string engine = *it;
+	    	std::string parser = *it;
 
-	        if (engine.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
+	        if (parser.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
 	        	flags |= ENABLE_ON_WRIOP_INGRESS;
 	        }
-	        else if (engine.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
+	        else if (parser.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
 	        	flags |= ENABLE_ON_WRIOP_EGRESS;
 	        }
-	        else if (engine.compare(HW_ACCEL_AIOP_INGRESS) == 0) {
+	        else if (parser.compare(HW_ACCEL_AIOP_INGRESS) == 0) {
 	        	flags |= ENABLE_ON_AIOP_INGRESS;
 	        }
-	        else if (engine.compare(HW_ACCEL_AIOP_EGRESS) == 0) {
+	        else if (parser.compare(HW_ACCEL_AIOP_EGRESS) == 0) {
 	        	flags |= ENABLE_ON_AIOP_EGRESS;
 	        }
-			else if (engine.compare(HW_ACCEL_WRIOP) == 0) {
-				flags |= (ENABLE_ON_WRIOP_INGRESS | ENABLE_ON_WRIOP_EGRESS);
-			}
-			else if (engine.compare(HW_ACCEL_AIOP) == 0) {
+			else if (parser.compare(HW_ACCEL_AIOP) == 0) {
 				flags |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
 			}
-			else if (engine.compare(HW_ACCEL_ALL) == 0) {
+			else if (parser.compare(HW_ACCEL_ALL) == 0) {
 				flags |= (ENABLE_ON_WRIOP_INGRESS | ENABLE_ON_WRIOP_EGRESS |
 							ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
 			}
