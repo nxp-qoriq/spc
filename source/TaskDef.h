@@ -483,6 +483,7 @@ public:
     void blob_write_blob_size(std::ofstream &dumpFile);
 
 	void dumpBlob(std::string path);
+	void dumpBlobHeader(std::string blobFile, std::string blobHeaderFile);
 
     //    end of Blob generation
     //----------------------------------------------------------------------

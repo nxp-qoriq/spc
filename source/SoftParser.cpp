@@ -98,12 +98,20 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
     task->spr.setExtensions(extns);
     task->spr.setSize(actualCodeSize);
 
+    /*not important as intermediate code
     if (genIntermCode)
     {
     	task->spr.dumpHeader(baseName + ".h");
     	task->spr.dumpBinary(baseName + ".bin");
     }
+    */
+
 	task->spr.dumpBlob(baseName + ".spb");
+
+    if (genIntermCode)
+    {
+    	task->spr.dumpBlobHeader(baseName + ".spb", baseName + "_blob.h");
+    }
 
     /* Free memory*/
     while (labels)
@@ -977,6 +985,59 @@ void CSoftParseResult::dumpBlob(std::string path)
     blob_write_blob_size(dumpFile);
 
 	dumpFile.close();
+}
+
+void CSoftParseResult::dumpBlobHeader(std::string blobFile, std::string blobHeaderFile)
+{
+    char ch;
+    int n = 0, i = 0, val;
+    uint8_t *pTestBlob = NULL;
+
+	std::ifstream readFile;
+    readFile.open(blobFile.c_str(), std::ios::in | std::ios::binary);
+
+    std::ofstream dumpFile;
+    dumpFile.open(blobHeaderFile.c_str(), std::ios::out);
+
+    readFile.seekg(0, std::ios::end);
+	int size = (int)readFile.tellg();
+	readFile.seekg(0, std::ios::beg);
+
+    dumpFile << "uint8_t blob[] = {   \\" << endl;
+    dumpFile << "\t";
+
+    //used only for testing the blob
+    //pTestBlob = new uint8_t[size];
+
+    while (true)
+    {
+		n++;
+		readFile.read(&ch, 1);
+		if (readFile.eof())
+			break;
+
+		val = (unsigned char)ch;
+		if (pTestBlob)
+			pTestBlob[i] = (unsigned char)val;
+
+		dumpFile << "0x";
+		if (val < 0x10)
+			dumpFile << "0";
+		dumpFile << std::hex << val;
+
+		if (n == 16) {
+			n = 0;
+			dumpFile << ", \\" << endl;
+			dumpFile << "\t";
+		} else {
+			dumpFile << ", ";
+		}
+		i++;
+    }
+	dumpFile << "};" << endl;
+
+    readFile.close();
+    dumpFile.close();
 }
 
 //    end of Blob generation
