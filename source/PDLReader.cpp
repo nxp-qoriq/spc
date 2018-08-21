@@ -26,6 +26,7 @@
  *
  * ===================================================================*/
 
+#include <string.h>
 #include "PDLReader.h"
 
 #include "logger.hpp"

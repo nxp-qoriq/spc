@@ -26,6 +26,7 @@
  *
  * ===================================================================*/
 
+#include <string.h>
 #include "ConfigReader.h"
 
 #include "logger.hpp"
