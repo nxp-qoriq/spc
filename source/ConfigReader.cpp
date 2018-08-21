@@ -148,7 +148,8 @@ void ConfigReader::parseConfig( std::string filename )
         	parseParameters( cur );
         }
         // comment
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ) {
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
         }
         // other
         else {
@@ -206,6 +207,11 @@ void ConfigReader::parseMemorymap(xmlNodePtr pNode)
         	parseBytecode( &code, cur );
             task->program.push_back(code);
         }
+        // comment
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        }
+        // other
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
                                           xmlGetLineNo(cur), (char*)cur->name);
@@ -243,12 +249,17 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
 
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-on-parser" ) ) {
         	//TODO: support several bytecode sections
-        	CGenericError::printWarning(WARN_UNSUPPORTED, (char*)cur->name);
+        	CGenericErrorLine::printWarning(WARN_UNSUPPORTED, xmlGetLineNo(cur), (char*)cur->name);
         }
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-protocol" ) ) {
         	//TODO: support several bytecode sections
-        	CGenericError::printWarning(WARN_UNSUPPORTED, (char*)cur->name);
+        	CGenericErrorLine::printWarning(WARN_UNSUPPORTED, xmlGetLineNo(cur), (char*)cur->name);
         }
+        // comment
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        }
+        // other
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
                                           xmlGetLineNo(cur), (char*)cur->name);
@@ -277,6 +288,11 @@ void ConfigReader::parseParameters(xmlNodePtr pNode )
         	parseParameter( &param, cur );
             task->parameters.push_back(param);
         }
+        // comment
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        }
+        // other
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
                                           xmlGetLineNo(cur), (char*)cur->name);
@@ -366,6 +382,10 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"parser" ) ) {
         	parseDevParser( cur );
         }
+        // comment
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        }
         // other
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
@@ -401,6 +421,10 @@ void ConfigReader::parseDevParser(xmlNodePtr pNode)
 
             task->enableProtocolOnInit(protocol_name, parser_name);
 
+        }
+        // comment
+        else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( pCrtNode->name, (const xmlChar*)"text" )  ) {
         }
         // other
         else {

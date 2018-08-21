@@ -218,9 +218,12 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
     checkUnknownAttr(pNode, 6, "name", "longname", "showsumtemplate",
                                "comment", "description", "prevproto");
 
-    if (strlen(protocol->name.c_str()) > 8) {
-		CGenericErrorLine::printWarning("Protocol name is too long (maximum limit is 8 characters) : " + WARN_UNEXPECTED_NODE,
-				xmlGetLineNo(pNode), (char*)pNode->name );
+    //Check only custom protocols not HW protocols
+    if (softParse) {
+		if (strlen(protocol->name.c_str()) > 8) {
+			CGenericErrorLine::printWarning("Protocol name is too long (maximum limit is 8 characters) : " + WARN_UNEXPECTED_NODE,
+					xmlGetLineNo(pNode), (char*)pNode->name );
+		}
     }
 
     // In softparse get prevproto

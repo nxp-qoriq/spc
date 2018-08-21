@@ -87,7 +87,7 @@ const std::string ERR_INTERNAL_ERROR         = "(Internal): %1";
 
 const std::string WARN_UNEXPECTED_NODE       = "Unexpected/ignored node - %1";
 const std::string WARN_UNKNOWN_ATTRIBUTE     = "Unknown attribute '%1' in '%2' element";
-const std::string WARN_UNSUPPORTED           = "The following is currently unsupported and will be ignored - %1";
+const std::string WARN_UNSUPPORTED           = "Unsupported element will be ignored: %1";
 const std::string WARN_MORE_THAN32           = "Add, subtract operation are performed only on the 32 least significant bits ";
 const std::string WARN_GPR2                  = "$GPR2 is used internally by the compiler. "
                                            "Use this variables at your own risk";
