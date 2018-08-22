@@ -381,8 +381,12 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 
 /* BLOB magic number */
 #define BLOB_MAGIC_ID			0x53504243	/* SPBC */
-#define BLOB_VER				0x01000000
 
+/* BLOB version */
+#define BLOB_VER_MAJOR			0
+#define BLOB_VER_MINOR			1
+
+/* Parser HW block revision */
 #define SP_HW_REV_MAJOR		3
 #define SP_HW_REV_MINOR		2
 
@@ -595,7 +599,10 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 {
 	int sect_size;
-	uint32_t sp_rev;
+	uint32_t sp_rev, blob_rev;
+
+	//Blob Rev:
+	blob_rev = (BLOB_VER_MAJOR << 16) | BLOB_VER_MINOR;
 
 	//DEFAULT SoftParser Rev:
 	uint32_t sp_rev_major = SP_HW_REV_MAJOR;
@@ -618,7 +625,7 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 	blob_write_cpu_to_le32(dumpFile, BLOB_MAGIC_ID);
 
 	/* BLOB_VER (LE) */
-	blob_write_cpu_to_le32(dumpFile, BLOB_VER);
+	blob_write_cpu_to_le32(dumpFile, blob_rev);
 
 	/* SP_HW_REV (LE) */
 	blob_write_cpu_to_le32(dumpFile, sp_rev);
