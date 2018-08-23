@@ -139,7 +139,7 @@ extern int _sp_assembler_yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 5168 "sp_assembler.y" /* yacc.c:1909  */
+#line 5186 "sp_assembler.y" /* yacc.c:1909  */
 
           int   integer;
           char *string;

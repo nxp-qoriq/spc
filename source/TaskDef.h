@@ -48,6 +48,15 @@
 #include "Utils.h"
 #include "spc.h"
 
+
+/* Available HW Accelerators */
+#define HW_ACCEL_WRIOP_INGRESS		"wriop_ingress"
+#define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
+#define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
+#define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
+#define HW_ACCEL_AIOP				"aiop"
+
+
 class CExecuteExpression;
 class CExecuteSection;
 class CProtocol;

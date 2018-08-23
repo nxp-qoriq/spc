@@ -408,15 +408,6 @@ Bit 29: load to AIOP parser memory
 #define ENABLE_ON_AIOP_INGRESS		0x20
 #define ENABLE_ON_AIOP_EGRESS		0x10
 
-
-/* Available HW Accelerators */
-#define HW_ACCEL_WRIOP_INGRESS		"wriop_ingress"
-#define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
-#define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
-#define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
-#define HW_ACCEL_AIOP				"aiop"
-
-
 #define PARAM_TYPE_READ_ONLY		0x01
 
 

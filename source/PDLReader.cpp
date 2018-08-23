@@ -28,6 +28,7 @@
 
 #include <string.h>
 #include "PDLReader.h"
+#include "SPIR.h"
 
 #include "logger.hpp"
 using namespace logger;
@@ -957,5 +958,11 @@ CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,
 	checkUnknownAttr(pNode, 1, "faf");
 
 	if (executeSetresetfaf->name == "")
-		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeSetresetfaf->line, "faf");
+		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, executeSetresetfaf->line, "faf", "set");
+
+	CFaf faf(executeSetresetfaf->name);
+	if (faf.type == FAF_Reserved)
+		throw CGenericErrorLine(ERR_UNSUPPORTED_ATTRIBUTE_VALUE, executeSetresetfaf->line, "faf");
+	if (!faf.isUserDefined())
+		throw CGenericErrorLine(ERR_FAF_NOT_USER_DEFINED, executeSetresetfaf->line);
 }

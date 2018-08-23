@@ -138,10 +138,14 @@ const std::string ERR_ADVANCE_NOT_ALLOWED    = "The advance option cannot be set
 const std::string ERR_ADVANCE_REQUIRED       = "Advance is required when jumping to after_eth or after_ip protocols: %1";
 const std::string ERR_UNKNOWN_CONFIRM_OPTION = "Unknown confirm option, use 'yes' or 'no': %1";
 const std::string ERR_UNKNOWN_CCUSTOM_OPTION = "Unknown confirm custom option, use 'shim1' 'shim2' or 'no': %1";
-const std::string ERR_MISSING_ATTRIBUTE      = "Missing attribute. '%1' is required attribute for '%2' element: %3";
+const std::string ERR_MISSING_ATTRIBUTE      = "Missing attribute: '%1' is required attribute for '%2' element: %3";
 const std::string ERR_UNALLOWED_LVALUE_ASSIGN= "Name attribute in assign-variable element must be result array (RA) variable: %1";
 const std::string ERR_UNSUPPORTED_LOOP_TYPE  = "'%1' is unsupported loop type";
 const std::string ERR_CASE_NO_INT            = "Case element's value attribute must be an immediate integer: %1";
+const std::string ERR_UNSUPPORTED_ATTRIBUTE_VALUE = "Unsupported attribute value: attribute '%1' has an unsupported value";
+const std::string ERR_INVALID_ATTRIBUTE_VALUE = "Invalid attribute value: attribute '%1' has an invalid value for element '%2'";
+const std::string ERR_FAF_NOT_USER_DEFINED 	 = "Incorrect FAF attribute: the value is not User Defined FAF";
+const std::string ERR_UNDEFINED_PROTOCOL 	 = "Undefined protocol: the specified protocol '%1' is not defined in NetPDL file";
 
 /*Wrong protocol/variable/fields*/
 const std::string ERR_UNSUPPORTED_PROTOCOL   = "Unsupported protocol: %1";

@@ -331,6 +331,7 @@ public:
 
 	std::string getName() const;
 	void init();
+	bool isUserDefined();
 };
 
 class CLocation

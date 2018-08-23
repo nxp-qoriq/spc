@@ -322,7 +322,6 @@
 #define _FAF_User_Defined_5                         101
 #define _FAF_User_Defined_6                         102
 #define _FAF_User_Defined_7                         103
-#define _FAF_Reserved                               104
 
 /* ------------------------------------------------------------------------
  * Assembler parser context object.
