@@ -329,7 +329,7 @@ void ConfigReader::parseParameter(CParameter* param, xmlNodePtr pNode )
     param->protocol = getAttr(pNode, "protocol");
 
     std::string sOffset = getAttr(pNode, "offset");
-    if (sOffset.compare("auto") == 0) {
+    if (sOffset.length() == 0 || sOffset.compare("auto") == 0) {
     	param->offset = spParameterOffset;
     }
     else {
@@ -347,15 +347,19 @@ void ConfigReader::parseParameter(CParameter* param, xmlNodePtr pNode )
 		param->size = strtol(sSize.c_str(), NULL, 10);
 	spParameterOffset += param->size;
 
+	//TODO: check parameters don't overlap
+
 	std::string sType = getAttr(pNode, "type");
-	if (sType.compare("read-only") == 0)
+	if (sType.length() == 0 || sType.compare("read-write") == 0)
+		param->readOnly = false;
+	else if (sType.compare("read-only") == 0)
 		param->readOnly = true;
 	else
-		param->readOnly = false;
+		throw CGenericErrorLine(ERR_INVALID_ATTRIBUTE_VALUE, pNode->line, "type", "parameter");
 
 	std::string sValue = getAttr(pNode, "value");
 	memset(param->value, 0, PRS_PARAM_SIZE);
-	if (sValue.compare("auto") == 0) {
+	if (sValue.length() == 0 || sValue.compare("auto") == 0) {
 		memset(param->value, 0, PRS_PARAM_SIZE);
 	}
 	else {
