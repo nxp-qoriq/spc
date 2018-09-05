@@ -600,15 +600,14 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 	uint32_t sp_rev_minor = SP_HW_REV_MINOR;
 
 	if (task->soc_name.compare(0, 3, "LS2") == 0) {
+		//LS2 Parser revision read by mc from parser registers is: 3.2
 		sp_rev_major = 3;
-		//TODO: LS2 parser rev according to Eric mail is: 3.1
-		//sp_rev_minor = 1;
-		//TODO: LS2 parser rev read by mc from parser registers is: 3.2
 		sp_rev_minor = 2;
 	}
 	else if (task->soc_name.compare(0, 3, "LX2") == 0) {
+		//TODO: LX2 Parser revision according to Eric should be: 3.3
 		sp_rev_major = 3;
-		sp_rev_minor = 2;
+		sp_rev_minor = 3;
 	}
 	sp_rev = (sp_rev_major << 16) | sp_rev_minor;
 
