@@ -23,8 +23,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #==========================================================================
-# For host mode only compilation, set FMCHOSTMODE variable. For example:
-#     make FMCHOSTMODE=1
+# For host mode only compilation, set SPCHOSTMODE variable. For example:
+#     make SPCHOSTMODE=1
 #
 # Also, use variables below in accordance to your environment
 
@@ -73,7 +73,7 @@ CFLAGS += -DNCSW_LINUX -O2 -D__STDC_LIMIT_MACROS\
           -I$(NET_USPACE_HEADER_PATH)
 LDLIBS   = -lspc -lxml2 -lm
 
-ifdef FMCHOSTMODE
+ifdef SPCHOSTMODE
   LDFLAGS += -L.
   LDLIBS  += -lz
 else
@@ -88,7 +88,7 @@ endif
 CXXFLAGS = $(CFLAGS)
 
 .PHONY: default
-ifdef FMCHOSTMODE
+ifdef SPCHOSTMODE
 default: libspc.a spc
 else
 default: libspc.a spc

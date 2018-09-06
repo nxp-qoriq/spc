@@ -9,6 +9,10 @@ Build steps for SPC:
        - tclap
        - net user space library
 
+   - For host side compilation, use the following commands on Ubuntu to install them: 
+		sudo apt-get install libxml2-dev
+		sudo apt-get install libtclap-dev
+
    - Set environment variables or modify Makefile with the following entries:
        - NET_USPACE_HEADER_PATH - path to net user space package headers location
        - LIBXML2_HEADER_PATH    - path to libxml2 include files
@@ -16,8 +20,7 @@ Build steps for SPC:
 
    - Issue 'make' command
    
-   - For host side compilation (the mode in which SPC doesn't use
-     direct libfm API calls), use 'make FMCHOSTMODE=1' command
+   - For host side compilation, use 'make SPCHOSTMODE=1' command
 
 Install steps for SPC:
    - After successful compilation, put 'spc' application to
