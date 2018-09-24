@@ -122,31 +122,8 @@ void CIR::initIRProto(std::vector <CStatement> &statements)
 {
     ProtoType pt = protocolsIRs[status.currentProtoIndex].protocol.prevType[0];
 
-    /*  Workaround for HW issue 19895
-     The last label of an MPLS stack can direct the parser to begin a soft HXS.
-     If MPLS parsing encountered an error, parsing should be terminated and
-     not jump to the soft HXS. Currently, the parser does not check the error
-     status before going to the soft parser.*/
-    /*Currently disabled*/
-    if (pt == PT_MPLS)
-    {
-        CStatement ifStatement, jumpStatement, labelStatement;
-        labelStatement.createLabelStatement("NO_MPLS_ERROR");
-        ifStatement.newIfGotoStatement(labelStatement.label);
-        ifStatement.expr->newDyadicENode(EEQU);
-        ifStatement.expr->dyadic.left->newDyadicENode(EBITAND);
-        ifStatement.expr->dyadic.left->dyadic.left->newObjectENode(RA_L2R);
-        ifStatement.expr->dyadic.left->dyadic.right->createIntENode(31);
-        ifStatement.expr->dyadic.right->createIntENode(0);
-        jumpStatement.createGotoStatement(PT_END_PARSE);
-        jumpStatement.flags.advanceJump         = 0;
-        /*If there are no errors skip the next statement*/
-        statements.push_back(ifStatement);
-        /*Endparse if an error was encountered*/
-        statements.push_back(jumpStatement);
-        /*Finish workaround and continue normal code*/
-        statements.push_back(labelStatement);
-    }
+    //NOTE: Removed workaround on DPAA1 since not applicable on DPAA2
+    //Workaround for HW issue 19895
 }
 
 /*Check if there are multiple 'before' or 'after' sections. Currently
@@ -626,32 +603,8 @@ void CIR::createIRAction (CExecuteAction action, std::vector<CStatement> &statem
             throw CGenericErrorLine(ERR_ADVANCE_NOT_ALLOWED,
                                     action.line, action.advance);
 
-//TODO:  Warning: Is this workaround needed on DPAA2 ?
-
-        /*Workaround for HW bug 19894
-        The Parser maintains the outcome of its parsing activities in a
-        Parse Result array. Specifically, the layer 4 header fields is captured
-        in the Layer 4 results (L4R). Upon re-entry to layer 4 parsing,
-        the L4R need to be cleared in order to reflect the new results
-        properly. The parser does not clear the L4R upon re-entry.
-        Note that re-entry is only possible via soft parser, not part of
-        hard parser attachment.
-        Currently we workaround the bug by initializing the l4r field when
-        jumping from a layer4 extension or to a layer4 protocol.
-        This covers almost all realistic scenarios and has a relativly minor
-        effect on performance*/
-        if ((pt != PT_END_PARSE && pt != PT_RETURN &&
-             protocolsIRs[status.currentProtoIndex].protocol.PossibleLayer4())
-                ||
-            (CProtocol::PossibleLayer4(pt)))
-        {
-            CStatement assignStatement;
-            assignStatement.newAssignStatement(gStatement.line);
-            assignStatement.expr->newDyadicENode();
-            assignStatement.expr->dyadic.left->newObjectENode(RA_L4R);
-            assignStatement.expr->dyadic.right->createIntENode(0);
-            statements.push_back(assignStatement);
-        }
+        //NOTE: Removed workaround on DPAA1 since not applicable on DPAA2
+        //Workaround for HW bug 19894
 
         statements.push_back(gStatement);
     }
@@ -1916,6 +1869,7 @@ void RA::initRA()
 #else  /* FM_SHIM3_SUPPORT */
 	RATypeInfo[RA_IP_PIDOFFSET]          = CLocation(34,34);
 #endif /* FM_SHIM3_SUPPORT */
+	RATypeInfo[RA_L2OFFSET]			 	 = CLocation(35,35);
 	RATypeInfo[RA_ETHOFFSET]			 = CLocation(35,35);
 	RATypeInfo[RA_LLC_SNAPOFFSET]		 = CLocation(36,36);
 	RATypeInfo[RA_VLANTCIOFFSET_1]		 = CLocation(37,37);
@@ -1924,6 +1878,7 @@ void RA::initRA()
 	RATypeInfo[RA_PPPOEOFFSET]			 = CLocation(40,40);
 	RATypeInfo[RA_MPLSOFFSET_1]			 = CLocation(41,41);
 	RATypeInfo[RA_MPLSOFFSET_N]			 = CLocation(42,42);
+	RATypeInfo[RA_L3OFFSET]			 	 = CLocation(43,43);
 	RATypeInfo[RA_ARPOFFSET]			 = CLocation(43,43);
 	RATypeInfo[RA_IPOFFSET_1]			 = CLocation(43,43);
 	RATypeInfo[RA_IPOFFSET_N]			 = CLocation(44,44);
