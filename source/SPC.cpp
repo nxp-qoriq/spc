@@ -41,12 +41,9 @@
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4996)
-#ifdef _DEBUG
-#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.VC90.CRT' version='9.0.21022.8' processorArchitecture='x86' publicKeyToken='1fc8b3b9a1e18e3b' language='*'\"")
-#endif
 #endif
 
-#define SPC_VERSION "0.1.1"
+#define SPC_VERSION "1.0.0"
 
 #include <cstdlib>
 
@@ -90,13 +87,6 @@ void set_log_level( std::string log_level_name )
 
 int main( int argc, char* argv[] )
 {
-#ifdef _DEBUG
-    _CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
-//    _crtBreakAlloc = 2117;
-#endif
-
-    // Wrap everything in the 'try' block.  Do this every time,
-    // because exceptions will be thrown for problems.
     try {
         // Get directory name
         std::string appDir( argv[0] );

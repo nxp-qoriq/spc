@@ -23,10 +23,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #==========================================================================
-# For host mode only compilation, set SPCHOSTMODE variable. For example:
-#     make SPCHOSTMODE=1
 #
-# Also, use variables below in accordance to your environment
+# Use variables below in accordance to your environment
 
 NET_USPACE_HEADER_PATH ?= ./include/net
 LIBXML2_HEADER_PATH    ?= /usr/include/libxml2
@@ -35,64 +33,26 @@ TCLAP_HEADER_PATH      ?= /usr/include
 PKG_NAME = spc
 PKG_RELEASE = 1
 
-PLATFORM_FLAG = -DLS1043
-
-ifeq ($(MACHINE),p1023rds)
-  PLATFORM_FLAG = -DP1023
-endif
-
-ifeq ($(MACHINE),b4860qds)
-  PLATFORM_FLAG = -DFMAN_V3H
-endif
-
-ifeq ($(MACHINE),t4240qds)
-  PLATFORM_FLAG = -DFMAN_V3H
-endif
-
-ifeq ($(MACHINE),t1040qds)
-  PLATFORM_FLAG = -DFMAN_V3L
-endif
-
-ifeq ($(MACHINE),ls1043)
-  PLATFORM_FLAG = -DLS1043
-endif
-
-ifeq ($(MACHINE),ls1046)
-  PLATFORM_FLAG = -DLS1043
-endif
-
-CFLAGS += $(PLATFORM_FLAG)
+ARFLAGS = -rvU
 
 ifdef M64BIT
   CFLAGS += -m64
+  LDFLAGS += -m64
 endif
 
-CFLAGS += -DNCSW_LINUX -O2 -D__STDC_LIMIT_MACROS\
+CFLAGS += -DSPC_LINUX -O2 -D__STDC_LIMIT_MACROS\
           -I$(TCLAP_HEADER_PATH) \
           -I$(LIBXML2_HEADER_PATH) \
           -I$(NET_USPACE_HEADER_PATH)
 LDLIBS   = -lspc -lxml2 -lm
 
-ifdef SPCHOSTMODE
-  LDFLAGS += -L.
-  LDLIBS  += -lz
-else
-  CFLAGS += -fPIC
-  LDFLAGS += -L.
-endif
-
-ifdef M64BIT
-  LDFLAGS += -m64
-endif
+LDFLAGS += -L.
 
 CXXFLAGS = $(CFLAGS)
 
 .PHONY: default
-ifdef SPCHOSTMODE
+
 default: libspc.a spc
-else
-default: libspc.a spc
-endif
 
 objects = ./libspc.o                                                    \
      ./PDLReader.o ./ConfigReader.o                                                   \
@@ -111,6 +71,8 @@ headers = spc.h GenericError.h \
           SPExpr.hpp logger.hpp 
 
 other_files = ./spc ./softparse.h ./libspc.a ./SPC.o
+
+all: spc
 
 spc : ./SPC.o ./GenericError.o libspc.a
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)

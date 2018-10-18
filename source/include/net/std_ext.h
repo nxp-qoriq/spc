@@ -41,7 +41,6 @@
 
 
 #include "types_ext.h"
-#include "ncsw_ext.h"
 
 
 #endif /* __STD_EXT_H */

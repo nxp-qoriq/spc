@@ -59,20 +59,6 @@
 # include <stdbool.h>
 #endif
 
-#ifdef NETCOMMSW_ALIASING
-#define uint8_t        _NETCOMMSW_UINT8_T_
-#define uint16_t       _NETCOMMSW_UINT16_T_
-#define uint32_t       _NETCOMMSW_UINT32_T_
-#define uint64_t       _NETCOMMSW_UINT64_T_
-#define int8_t         _NETCOMMSW_INT8_T_
-#define int16_t        _NETCOMMSW_INT16_T_
-#define int32_t        _NETCOMMSW_INT32_T_
-#define int64_t        _NETCOMMSW_INT64_T_
-#define float_t        _NETCOMMSW_FLOAT_T_
-#define double_t       _NETCOMMSW_DOUBLE_T_
-#define bool           _NETCOMMSW_BOOL_
-#endif /* NETCOMMSW_ALIASING */
-
 /* physAddress_t should be uintptr_t */
 typedef uint64_t physAddress_t;
 

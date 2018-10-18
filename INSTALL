@@ -19,8 +19,6 @@ Build steps for SPC:
        - TCLAP_HEADER_PATH      - path to TCLAP include files
 
    - Issue 'make' command
-   
-   - For host side compilation, use 'make SPCHOSTMODE=1' command
 
 Install steps for SPC:
    - After successful compilation, put 'spc' application to
