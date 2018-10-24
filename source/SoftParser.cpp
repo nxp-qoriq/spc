@@ -383,8 +383,8 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
 #define BLOB_MAGIC_ID			0x53504243	/* SPBC */
 
 /* BLOB version */
-#define BLOB_VER_MAJOR			0
-#define BLOB_VER_MINOR			1
+#define BLOB_VER_MAJOR			1
+#define BLOB_VER_MINOR			0
 
 /* Parser HW block revision */
 #define SP_HW_REV_MAJOR		3
