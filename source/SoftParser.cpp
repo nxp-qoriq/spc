@@ -605,9 +605,9 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 		sp_rev_minor = 2;
 	}
 	else if (task->soc_name.compare(0, 3, "LX2") == 0) {
-		//TODO: LX2 Parser revision according to Eric should be: 3.3
+		//TODO: LX2 Parser revision according to testers (Xing) should be: 3.2
 		sp_rev_major = 3;
-		sp_rev_minor = 3;
+		sp_rev_minor = 2;
 	}
 	sp_rev = (sp_rev_major << 16) | sp_rev_minor;
 
