@@ -138,7 +138,7 @@
 /*
  * Instruction modification values
  */
-#define _SP_INSTR_MOD_JMP_HXS               0x0400
+#define _SP_INSTR_MOD_JMP_HXS               0x0001
 #define _SP_INSTR_MOD_JMP_FAF_HXS           0x0080
 
 /*
