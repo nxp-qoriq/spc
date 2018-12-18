@@ -1,7 +1,3 @@
-# The MIT License (MIT)                                                   #
-# Copyright 2018 NXP								                      #
-###########################################################################
-
 Build steps for SPC:
    - The package is dependent on the following external packages that should
      be installed on your system:
