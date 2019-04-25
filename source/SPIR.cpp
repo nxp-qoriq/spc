@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -31,8 +31,13 @@
 
 uint32_t CIR::currentUniqueName = 0;
 
+CIR::~CIR()
+{
+	deleteIR();
+}
+
 /* ------------------------- CreateIR functions ---------------------------*/
-void CIR::createIR(CTaskDef* newTask)
+void CIR::createIR(CSoftParserTask* newTask)
 {
     this->task = newTask;
     this->createIR();
@@ -46,7 +51,7 @@ void CIR::setDebug(bool debug)
 /*Creates IR. This function analyzes the taskDef structure, and creates an
 IR instruction. The function is the second stage in the compilation process
 (after parsing, and before creating pcode and dumping the assembly code*/
-void CIR::createIR ()
+void CIR::createIR()
 {
     uint32_t i, j, count = 0;
     /*Create IR for each protocol*/
@@ -58,9 +63,8 @@ void CIR::createIR ()
             status.currentProtoIndex = count;
 
             /*Insert initial label*/
-            CLabel labelP("START_"+task->protocols[i].name);
-            CProtocolIR protoIR(labelP, task->protocols[i]);
-            protoIR.ir = this;
+            CLabel labelP("START_" + task->protocols[i].name);
+            CProtocolIR protoIR(this, labelP, task->protocols[i]);
             CStatement statement;
             statement.createLabelStatement(labelP);
             protoIR.statements.push_back(statement);
@@ -82,7 +86,6 @@ void CIR::createIR ()
             	}
                 protoIR.protocol.prevType.push_back(pt);
             }
-
             protocolsIRs.push_back(protoIR);
 
             /*Add any special code before user sections if needed*/
@@ -843,12 +846,6 @@ void CIR::getBufferInfo (std::string &name, uint32_t &startByte, uint32_t &sizeB
         throw CGenericErrorLine (ERR_BUFFER_ACCESS_TOO_LARGE, line, oName);
 }
 
-void CIR::setTask (CTaskDef *task1)
-{
-    task = task1;
-}
-
-
 /*Find errors in expressions*/
 void CIR::checkExprValue (CENode* eNode, int line) const
 {
@@ -1012,7 +1009,7 @@ void CIR::findPrevprotoOffset (CObject *object, int line) const
 /*Find a SP Protocol */
 bool CIR::findSpProtocol(std::string nextproto, int line) const
 {
-	for (int i = 0; i < protocolsIRs.size(); i++)
+	for (unsigned int i = 0; i < protocolsIRs.size(); i++)
     {
     	if (nextproto.compare(protocolsIRs[i].protocol.name) == 0) {
     		return true;
@@ -1026,7 +1023,7 @@ std::string CIR::findSpProtoLabel(std::string nextproto, int line) const
 {
 	std::string label = "";
 
-	for (int i = 0; i < protocolsIRs.size(); i++)
+	for (unsigned int i = 0; i < protocolsIRs.size(); i++)
     {
     	if (nextproto.compare(protocolsIRs[i].protocol.name) == 0) {
     		label = protocolsIRs[i].label.name;
@@ -1039,8 +1036,6 @@ std::string CIR::findSpProtoLabel(std::string nextproto, int line) const
 /*Find a protocol*/
 ProtoType CIR::findProtoLabel (std::string nextproto, int line) const
 {
-    int i = 0;
-
     std::string newName = stripBlanks (nextproto);
     if (insensitiveCompare(newName, "end_parse") ||
         insensitiveCompare(newName, "none"))
@@ -1114,8 +1109,8 @@ CENode* CIR::createENode()
 /*Return the other working register or R_WR1 by default*/
 CReg CReg::other()
 {
-    if      (type == R_WR0)
-        return CReg(R_WR1);
+    if (type == R_WR0)
+    	return CReg(R_WR1);
     else if (type == R_WR1)
         return CReg(R_WR0);
     else if (type == R_EMPTY)
@@ -1744,12 +1739,12 @@ void CStatement::deleteStatementNonRecursive ()
     if (isGeneralExprStatement() && expr)
     {
         delete expr;
-        expr = 0;
+        expr = NULL;
     }
     if (type == ST_SWITCH && switchTable)
     {
         delete switchTable;
-        switchTable = 0;
+        switchTable = NULL;
     }
 }
 
@@ -1768,31 +1763,31 @@ void CStatement::deleteStatement ()
     {
         expr->deleteENode();
         delete expr;
-        expr = 0;
+        expr = NULL;
     }
     if (type == ST_SWITCH && switchTable)
     {
         delete switchTable;
-        switchTable = 0;
+        switchTable = NULL;
     }
 }
 
-void CIR::deleteIR ()
+void CIR::deleteIR()
 {
-    uint32_t i=0, j=0;
+    uint32_t i, j;
     for (i = 0; i < protocolsIRs.size(); i++)
     {
         if (protocolsIRs[i].prevHeaderSize)
         {
             protocolsIRs[i].prevHeaderSize->deleteENode();
             delete protocolsIRs[i].prevHeaderSize;
-            protocolsIRs[i].prevHeaderSize = 0;
+            protocolsIRs[i].prevHeaderSize = NULL;
         }
         if (protocolsIRs[i].headerSize)
         {
             protocolsIRs[i].headerSize->deleteENode();
             delete protocolsIRs[i].headerSize;
-            protocolsIRs[i].headerSize = 0;
+            protocolsIRs[i].headerSize = NULL;
         }
         for (j = 0; j < protocolsIRs[i].statements.size(); j++)
             protocolsIRs[i].statements[j].deleteStatement();

@@ -58,7 +58,6 @@ bool innerBlanks( std::string str )
         return 0;
 }
 
-
 std::string stripDollar( std::string str )
 {
     std::string res = "";

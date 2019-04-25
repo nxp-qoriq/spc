@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -28,25 +28,30 @@
 
 #include "SPCreateCode.h"
 
-void CCode::createCode (CIR IR)
+CCode::~CCode()
+{
+	deleteCode();
+}
+
+void CCode::createCode(CIR *pIR)
 {
     CExecuteCode executeCode;
     uint32_t i, j;
     /*grab current name in case more labels need to be added*/
 
-    for (i = 0; i < IR.protocolsIRs.size(); i++)
+    for (i = 0; i < pIR->protocolsIRs.size(); i++)
     {
         CProtocolCode tempProtoCode;
-        tempProtoCode.protocol = IR.protocolsIRs[i].protocol;
-        tempProtoCode.label    = IR.protocolsIRs[i].label;
-        for (j = 0; j < IR.protocolsIRs[i].statements.size(); j++)
-             processStatement(IR.protocolsIRs[i].statements[j], tempProtoCode);
+        tempProtoCode.protocol = pIR->protocolsIRs[i].protocol;
+        tempProtoCode.label    = pIR->protocolsIRs[i].label;
+        for (j = 0; j < pIR->protocolsIRs[i].statements.size(); j++)
+             processStatement(pIR->protocolsIRs[i].statements[j], tempProtoCode);
         protocolsCode.push_back(tempProtoCode);
     }
     prepareEntireCode();
-    if (asmFile && IR.fDebug)
+    if (asmFile && pIR->fDebug)
         dumpAsm();
-    if (codeFile && IR.fDebug)
+    if (codeFile && pIR->fDebug)
         dumpCode();
 
     /*revise*/
@@ -56,11 +61,11 @@ void CCode::createCode (CIR IR)
     reviseEntireCode();
     prepareEntireCode();
 
-    if (asmFile && IR.fDebug)
+    if (asmFile && pIR->fDebug)
         *asmFile << reviseMsg;
     if (asmFile)
         dumpAsm();
-    if (codeFile && IR.fDebug)
+    if (codeFile && pIR->fDebug)
         *codeFile << reviseMsg;
     if (codeFile)
         dumpCode();

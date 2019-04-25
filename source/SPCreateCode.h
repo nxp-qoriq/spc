@@ -281,7 +281,7 @@ class CProtocolCode {
 
 class CCode
 {
-  public:
+  private:
     std::vector <CProtocolCode > protocolsCode;
   private:
     std::string      asmOutput;
@@ -295,7 +295,10 @@ class CCode
   public:
     CCode() : asmFile(0), codeFile(0), chksumStored(0),
     		gpr1Used(0), gpr2Used(0) {}
-    void createCode (CIR IR);
+    virtual ~CCode();
+    void createCode (CIR *pIR);
+    void createExtensions(CCodeSection *codeSect, std::vector<CExtension> &extns, void *labels);
+
   private:
     void processStatement  (CStatement statement, CProtocolCode& code);
     void processAssign     (CENode* expression,   CProtocolCode& code);

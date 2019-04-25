@@ -51,7 +51,6 @@ void errorFuncHandler( void * ctx, xmlErrorPtr error )
 /*Define static members*/
 int CGenericError::dontWarn = 0;
 
-
 CGenericError::CGenericError(std::string error, CErrorElem elem1, CErrorElem elem2, CErrorElem elem3, CErrorElem elem4, CErrorElem elem5,
                              CErrorElem elem6,  CErrorElem elem7, CErrorElem elem8, CErrorElem elem9, CErrorElem elem10)
 {
@@ -69,7 +68,6 @@ void CGenericError::printWarning(std::string error, CErrorElem elem1, CErrorElem
                              elem5, elem6, elem7, elem8, elem9, elem10);
     LOG( logger::WARN ) << tempError.msg << std::endl;
 }
-
 
 CGenericErrorLine::CGenericErrorLine(std::string error, int line,        CErrorElem elem1, CErrorElem elem2, CErrorElem elem3, CErrorElem elem4,
                                      CErrorElem elem5, CErrorElem elem6, CErrorElem elem7, CErrorElem elem8, CErrorElem elem9, CErrorElem elem10)

@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -29,7 +29,7 @@
 #include "TaskDef.h"
 
 
-void CTaskDef::dumpSpParsed (std::string path)
+void CSoftParserTask::dumpSpParsed (std::string path)
 {
     std::ofstream outFile;
     outFile.open(path.c_str(), std::ios::out);
@@ -69,9 +69,9 @@ void CExecuteSection::dumpSection(std::ofstream &outFile, uint8_t spaces)
         else if (executeExpressions[i].type == IT_ASSIGN)
             executeExpressions[i].assignInstr.dumpAssign(outFile, spaces+2);
         else if (executeExpressions[i].type == IT_IF)
-            executeExpressions[i].ifInstr.dumpIf        (outFile, spaces+2);
+            executeExpressions[i].ifInstr.dumpIf(outFile, spaces+2);
         else if (executeExpressions[i].type == IT_LOOP)
-            executeExpressions[i].loopInstr.dumpLoop    (outFile, spaces+2);
+            executeExpressions[i].loopInstr.dumpLoop(outFile, spaces+2);
         else if (executeExpressions[i].type == IT_INLINE)
             executeExpressions[i].inlineInstr.dumpInline(outFile, spaces+2);
         else if (executeExpressions[i].type == IT_SWITCH)

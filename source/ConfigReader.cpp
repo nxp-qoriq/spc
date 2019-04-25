@@ -41,9 +41,10 @@ static std::string availableParsers[] = {
 		""
 };
 
-ConfigReader::ConfigReader ()
+ConfigReader::ConfigReader(CSoftParserTask* pTaskData)
 {
     spParameterOffset = 0;
+    task = pTaskData;
 }
 
 // Aid function to retrieve XML element's attribute
@@ -91,11 +92,6 @@ void ConfigReader::checkUnknownAttr ( xmlNodePtr pNode, int num, ...)
         pNode->properties=pNode->properties->next;
     }
     pNode->properties=attributes;
-}
-
-void ConfigReader::setTaskData( CTaskDef* pTaskData )
-{
-    task = pTaskData;
 }
 
 void ConfigReader::parseConfig( std::string filename )
@@ -244,7 +240,7 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
     std::string sOffset = getAttr(pNode, "offset");
     if (sOffset.length() == 0 || sOffset.compare("auto") == 0) {
     	//first section BASE ADDRESS:
-    	codeSection->swOffset = ASSEMBLER_BASE;
+    	codeSection->swOffset = SP_ASSEMBLER_BASE_ADDRESS;
 
     	//TODO: for next sections should calculate available offset according to previous sections size
 
@@ -395,13 +391,13 @@ void ConfigReader::parseParameter(CParameter* param, xmlNodePtr pNode )
 	}
 	else {
 		if (sValue.compare(0, 2, "0x") == 0) {
-			for (int i = 0; i < (sValue.size()-2)/2; i++) {
+			for (int i = 0; i < ((int)sValue.size()-2)/2; i++) {
 				std::string str = sValue.substr(2 + i*2, 2);
-				param->value[i] = strtol(str.c_str(), NULL, 16);
+				param->value[i] = (uint8_t)strtol(str.c_str(), NULL, 16);
 			}
 		}
 		else {
-			param->value[0] = strtol(sValue.c_str(), NULL, 10);
+			param->value[0] = (uint8_t)strtol(sValue.c_str(), NULL, 10);
 		}
 	}
 

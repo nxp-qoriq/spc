@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -514,12 +514,12 @@ class CProtocolIR {
     CENode*                  headerSize;
     CENode*                  prevHeaderSize;
 
-    CProtocolIR() :                     headerSize(0), prevHeaderSize(0) {}
-    CProtocolIR(CLabel label1, CProtocol proto) :
-        label(label1), protocol(proto), headerSize(0), prevHeaderSize(0) {}
+    CProtocolIR() :              ir(NULL), headerSize(NULL), prevHeaderSize(NULL) {}
+    CProtocolIR(CIR* pir, CLabel label1, CProtocol proto) :
+    	ir(pir), label(label1), protocol(proto), headerSize(0), prevHeaderSize(0) {}
 
-    void reviseProtocolIR   (CIR *ir);
-    void reviseAnd          (uint32_t i,  CIR *ir, bool &revised);
+    void reviseProtocolIR   ();
+    void reviseAnd          (uint32_t i,  bool &revised);
     void reviseOr           (uint32_t i, bool &revised);
     void reviseIfngoto      (uint32_t i, bool &revised);
     void insertStatement    (uint32_t i, CStatement statement);
@@ -541,18 +541,18 @@ class CIR
 {
   public:
     std::vector <CProtocolIR> protocolsIRs;
-    CTaskDef                *task;
+    CSoftParserTask         *task;
     bool 					fDebug;
     CIRStatus               status;
     static uint32_t         currentUniqueName;
     std::ofstream           *outFile;
 
-    CIR() : outFile(0), fDebug(0) {}
+    CIR() : task(NULL), outFile(0), fDebug(0) {}
+    virtual ~CIR();
 
-    void setTask (CTaskDef *task1);
-    void createIR ();
+    void createIR();
     void initIRProto(std::vector <CStatement> &statements);
-    void createIR (CTaskDef *newTask);
+    void createIR (CSoftParserTask *newTask);
     void setDebug(bool debug);
     void createIRSection     (CExecuteSection    section,    CProtocolIR& pIR);
     void createIRExpressions (CExecuteSection    section,    std::vector<CStatement> &statements);

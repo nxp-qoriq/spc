@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,7 +22,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * File Name : FMCTaskDef.cpp
+ * File Name : TaskDef.cpp
  *
  * ===================================================================*/
 
@@ -32,8 +32,7 @@
 #include "TaskDef.h"
 
 
-bool
-findConseqBits( uint64_t value, uint32_t& size, uint32_t& offset )
+bool findConseqBits( uint64_t value, uint32_t& size, uint32_t& offset )
 {
     if ( 0 == value ) return false;
 
@@ -59,18 +58,35 @@ findConseqBits( uint64_t value, uint32_t& size, uint32_t& offset )
     return true;
 }
 
-CTaskDef::CTaskDef(void)
+CSoftParserTask::CSoftParserTask(void)
 {
+	spb.setTask(this);
 }
 
-CTaskDef::~CTaskDef(void)
+CSoftParserTask::~CSoftParserTask(void)
 {
+	deleteExecute();
 }
 
+uint32_t CSoftParserTask::getBaseAddresss(unsigned int index)
+{
+	if (index < 0 || index >= program.size())
+		return SP_ASSEMBLER_BASE_ADDRESS;
 
+	return program[index].swOffset;
+}
 
-bool
-CTaskDef::FieldExists( const std::string fullFieldName) const
+void CSoftParserTask::enableProtocolOnInit(std::string protocol_name, std::string parser_name)
+{
+	for ( unsigned int i = 0; i < protocols.size(); i++ ) {
+        if ( protocols[i].name == protocol_name ) {
+        	protocols[i].parsers.push_back(parser_name);
+        	break;
+        }
+	}
+}
+
+bool CSoftParserTask::FieldExists( const std::string fullFieldName) const
 {
     bool     bRet = false;
     uint32_t bitSize;
@@ -92,9 +108,7 @@ CTaskDef::FieldExists( const std::string fullFieldName) const
     return bRet;
 }
 
-
-bool
-CTaskDef::GetFieldProperties( const std::string fullFieldName,
+bool CSoftParserTask::GetFieldProperties( const std::string fullFieldName,
                               uint32_t&         bitSize,
                               uint32_t&         bitOffset ) const
 {
@@ -120,35 +134,9 @@ CTaskDef::GetFieldProperties( const std::string fullFieldName,
     return bRet;
 }
 
-
-std::string
-CTaskDef::getShimNoFromCustom( const std::string protocol_name ) const
+bool CSoftParserTask::findSpProtocol(std::string protocol_name) const
 {
-    std::string result = "";
-    unsigned int i;
-
-    for ( i = 0; i < protocols.size(); ++i ) {
-        if ( protocols[i].name == protocol_name ) {   // Found?
-            break;
-        }
-    }
-    if ( i >= protocols.size() ) {
-        return result;
-    }
-
-    std::set< std::string > custom_confirms;
-    protocols[i].executeCode.getConfirmCustom( custom_confirms );
-
-    if ( custom_confirms.size() != 0 ) {
-        result = *custom_confirms.begin();
-    }
-
-    return result;
-}
-
-bool CTaskDef::findSpProtocol(std::string protocol_name) const
-{
-	for (int i = 0; i < protocols.size(); i++)
+	for (unsigned int i = 0; i < protocols.size(); i++)
     {
     	if (protocol_name.compare(protocols[i].name) == 0) {
     		return true;
@@ -159,8 +147,7 @@ bool CTaskDef::findSpProtocol(std::string protocol_name) const
 
 
 /*Gets the size of the protocol's header according to its fields*/
-bool
-CProtocol::GetHeaderSize( uint32_t& size ) const
+bool CProtocol::GetHeaderSize( uint32_t& size ) const
 {
     uint32_t max=0;
     for (unsigned int i=0; i<fields.size(); i++)
@@ -178,8 +165,7 @@ CProtocol::GetHeaderSize( uint32_t& size ) const
     return 1;
 }
 
-bool
-CProtocol::FieldExists( const std::string fieldname) const
+bool CProtocol::FieldExists( const std::string fieldname) const
 {
     std::vector< CField >::const_iterator fieldit;
     for ( fieldit = fields.begin();
@@ -192,8 +178,7 @@ CProtocol::FieldExists( const std::string fieldname) const
     return 0;
 }
 
-bool
-CProtocol::GetFieldProperties( const std::string fieldname,
+bool CProtocol::GetFieldProperties( const std::string fieldname,
                                uint32_t&         bitsize,
                                uint32_t&         bitoffset ) const
 {
@@ -328,8 +313,6 @@ short CProtocol::ProtocolLayer(ProtoType      pt)
     return 0;
 }
 
-
-
 void CExecuteSection::deleteSection()
 {
     uint32_t i, j;
@@ -352,8 +335,7 @@ void CExecuteSection::deleteSection()
             {
                 if (executeExpression.switchInstr.cases[j].ifCaseValid)
                 {
-                    executeExpression.switchInstr.cases[j].ifCase.
-                        deleteSection();
+                    executeExpression.switchInstr.cases[j].ifCase.deleteSection();
                     executeExpression.switchInstr.cases[j].ifCaseValid = false;
                 }
             }
@@ -362,13 +344,11 @@ void CExecuteSection::deleteSection()
                 executeExpression.switchInstr.defaultCase.deleteSection();
                 executeExpression.switchInstr.defaultCaseValid = false;
             }
-        }       /*finished switches*/
-    }           /*finished expressions*/
-                /*end of function*/
+        } /*finished switches*/
+    } /*finished expressions*/
 }
 
-
-void CTaskDef::deleteExecute()
+void CSoftParserTask::deleteExecute()
 {
     uint32_t i, j;
     for (i = 0; i < protocols.size(); i++)
@@ -382,18 +362,18 @@ void CTaskDef::deleteExecute()
     }
 }
 
+CConfirmCustomExtractor::~CConfirmCustomExtractor()
+{
+}
 
-void
-CExecuteAction::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteAction::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     if ( !confirmCustom.empty() && ( confirmCustom != "no" ) ) {
         custom_confirms.insert( confirmCustom );
     }
 }
 
-
-void
-CExecuteIf::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteIf::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     if ( ifTrueValid ) {
         ifTrue.getConfirmCustom( custom_confirms );
@@ -404,24 +384,19 @@ CExecuteIf::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 }
 
 
-void
-CExecuteLoop::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteLoop::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     loopBody.getConfirmCustom( custom_confirms );
 }
 
-
-void
-CExecuteCase::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteCase::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     if ( ifCaseValid ) {
         ifCase.getConfirmCustom( custom_confirms );
     }
 }
 
-
-void
-CExecuteSwitch::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteSwitch::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     for ( unsigned int i = 0; i < cases.size(); ++i ) {
         cases[i].getConfirmCustom( custom_confirms );
@@ -432,9 +407,7 @@ CExecuteSwitch::getConfirmCustom( std::set< std::string >& custom_confirms ) con
     }
 }
 
-
-void
-CExecuteSection::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteSection::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     if ( !confirmCustom.empty() && ( confirmCustom != "no" ) ) {
         custom_confirms.insert( confirmCustom );
@@ -445,9 +418,7 @@ CExecuteSection::getConfirmCustom( std::set< std::string >& custom_confirms ) co
     }
 }
 
-
-void
-CExecuteExpression::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteExpression::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     switch ( type ) {
         case IT_ACTION:
@@ -468,9 +439,7 @@ CExecuteExpression::getConfirmCustom( std::set< std::string >& custom_confirms )
     }
 }
 
-
-void
-CExecuteCode::getConfirmCustom( std::set< std::string >& custom_confirms ) const
+void CExecuteCode::getConfirmCustom( std::set< std::string >& custom_confirms ) const
 {
     for ( unsigned int i = 0; i < executeSections.size(); ++i ) {
         executeSections[i].getConfirmCustom( custom_confirms );

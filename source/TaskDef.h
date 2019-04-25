@@ -22,7 +22,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * File Name : FMCTaskDef.h
+ * File Name : TaskDef.h
  *
  * ===================================================================*/
 
@@ -45,29 +45,12 @@
 #endif
 
 #include "GenericError.h"
+#include "SoftParser.h"
 #include "Utils.h"
 #include "spc.h"
 
 
-/* Available HW Accelerators */
-#define HW_ACCEL_WRIOP_INGRESS		"wriop_ingress"
-#define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
-#define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
-#define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
-#define HW_ACCEL_AIOP				"aiop"
-
-
 class CExecuteExpression;
-class CExecuteSection;
-class CProtocol;
-class CLabel;
-class CTaskDef;
-
-/// A set of named numbers with fixed values
-typedef std::map< std::string, unsigned int >           CConstants;
-/// Iterator class for constant values container
-typedef std::map< std::string, unsigned int >::iterator CConstantsIter;
-
 
 typedef enum ExecuteInstructionType {
 	IT_IF,
@@ -89,91 +72,12 @@ typedef enum ExecuteSectionType {
              of IN statement and not due to a new section*/
 } ExecuteSectionType;
 
-
-typedef enum ProtoType {
-	PT_INVALID,
-    PT_ETH,
-    PT_LLC_SNAP,
-    PT_VLAN,
-    PT_VxLAN,
-    PT_PPPOE_PPP,
-    PT_MPLS,
-	PT_ARP,
-	PT_IP,
-    PT_IPV4,
-    PT_IPV6,
-    PT_OTHER_L3,
-    PT_GRE,
-    PT_MINENCAP,
-    PT_TCP,
-    PT_UDP,
-    PT_IPSEC_AH,
-    PT_IPSEC_ESP,
-    PT_SCTP,
-    PT_DCCP,
-    PT_OTHER_L4,
-	PT_GTP,
-	PT_ESP,
-    PT_NEXT_ETH,
-	PT_NEXT_IP,
-	PT_NEXT_TCP,
-    PT_NEXT_UDP,
-	PT_OTHER_L5,
-	PT_FINAL_SHELL,
-    PT_RETURN,
-    PT_END_PARSE,
-    PT_NONE,   			/* Used to invoke SP before HW Parser: before Ethernet */
-    PT_SP_PROTOCOL,		/* Another Soft Parser Protocol */
-} ProtoType;
-
-class CField
-{
-  public:
-    std::string type;
-    std::string name;
-    std::string size;
-    std::string longname;
-    std::string showtemplate;
-    std::string mask;
-    std::string plugin;
-    std::string expr;
-    std::string description;
-    std::string endtoken;
-    std::string begintoken;
-    std::string endregex;
-    std::string endoffset;
-    std::string beginregex;
-    std::string beginoffset;
-    std::string bigendian;
-    std::string comment;
-    std::string align;
-    std::string enddiscard;
-    std::string offset;
-};
-
-typedef enum e_FmPcdExtractSource {
-    ES_FROM_FRAME_START,          /**< KG & CC: Extract from beginning of frame */
-    ES_FROM_DFLT_VALUE,           /**< KG only: Extract from a default value */
-    ES_FROM_CURR_END_OF_PARSE,    /**< KG only: Extract from the point where parsing had finished */
-    ES_FROM_KEY,                  /**< CC only: Field where saved KEY */
-    ES_FROM_HASH,                 /**< CC only: Field where saved HASH */
-    ES_FROM_PARSE_RESULT,         /**< KG & CC: Extract from the parser result */
-    ES_FROM_ENQ_FQID,             /**< KG & CC: Extract from enqueue FQID */
-    ES_FROM_FLOW_ID               /**< CC only: Field where saved Dequeue FQID */
-} e_FmPcdExtractSource;
-
-typedef enum e_FmPcdExtractAction {
-    EA_NONE,                           /**< NONE  */
-    EA_EXACT_MATCH,                    /**< Exact match on the selected extraction*/
-    EA_INDEXED_LOOKUP                  /**< Indexed lookup on the selected extraction*/
-} e_FmPcdExtractAction;
-
 class CConfirmCustomExtractor
 {
   public:
+	virtual ~CConfirmCustomExtractor();
     virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const = 0;
 };
-
 
 class CExecuteSection : public CConfirmCustomExtractor
 {
@@ -191,7 +95,6 @@ class CExecuteSection : public CConfirmCustomExtractor
 
     virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const;
 };
-
 
 class CExecuteAssign : public CConfirmCustomExtractor
 {
@@ -348,7 +251,6 @@ class CExecuteExpression : public CConfirmCustomExtractor
     virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const;
 };
 
-
 class CExecuteCode : public CConfirmCustomExtractor
 {
   public:
@@ -357,6 +259,30 @@ class CExecuteCode : public CConfirmCustomExtractor
      virtual void getConfirmCustom( std::set< std::string >& custom_confirms ) const;
 };
 
+class CField
+{
+  public:
+    std::string type;
+    std::string name;
+    std::string size;
+    std::string longname;
+    std::string showtemplate;
+    std::string mask;
+    std::string plugin;
+    std::string expr;
+    std::string description;
+    std::string endtoken;
+    std::string begintoken;
+    std::string endregex;
+    std::string endoffset;
+    std::string beginregex;
+    std::string beginoffset;
+    std::string bigendian;
+    std::string comment;
+    std::string align;
+    std::string enddiscard;
+    std::string offset;
+};
 
 class CProtocol
 {
@@ -416,105 +342,7 @@ public:
         prevType(types), prevNames(names), protocol(prot), position(pos), indexPerHdr(0) {}
 };
 
-const int ASSEMBLER_BASE = SP_ASSEMBLER_BASE_ADDRESS;
-const int CODE_SIZE      = MAX_SP_CODE_SIZE; //4028 bytes
-
-
-class CParameter
-{
-	public:
-	CParameter() :  offset(0), size(0), readOnly(false) 	{};
-
-	public:
-		std::string		name;
-		std::string		protocol;
-		uint32_t		offset;
-		uint32_t		size;
-		bool			readOnly;
-		uint8_t			value[PRS_PARAM_SIZE];
-};
-
-
-class CSoftParseResult
-{
-public:
-    uint16_t                 base;                      /**< SW parser base bytes
-                                                             must be larger than 0x40*/
-    uint32_t                 size;                      /**< SW parser code size in bytes */
-    uint8_t                  p_Code[CODE_SIZE];         /**< SW parser code */
-    uint8_t                  numOfLabels;               /**< Number of labels for SW parser. */
-    std::vector <CExtension> labelsTable;               /**< SW parser labels table, containing
-                                                             numOfLabels entries */
-
-public:
-    CSoftParseResult();
-
-    void setSize        (const uint32_t baseAddress1);
-    void setBinary      (const uint8_t binary[], const uint32_t size);
-    void setBaseAddresss(const uint16_t baseAddress);
-    void setExtensions  (const std::vector <CExtension> extns);
-
-};
-
-class CCodeSection
-{
-	public:
-	CCodeSection() :  swOffset(ASSEMBLER_BASE) 	{};
-
-	public:
-		uint32_t		swOffset;
-		std::vector< std::string > parsers;
-		std::vector< std::string > protocols;
-
-		CSoftParseResult           spr;
-};
-
-class CSoftParseBlob
-{
-public:
-    CTaskDef 				*task;
-    bool					 cpuLE;				/**< TRUE if CPU is LE */
-
-public:
-    CSoftParseBlob();
-
-    void setTask		(CTaskDef *taskdef);
-
-#if 0
-    void dumpHeader     (std::string path) const;
-	void dumpBinary     (std::string path) const;
-    std::string externProtoName (const ProtoType type);
-#endif
-
-    //----------------------------------------------------------------------
-    //    Blob generation
-
-    uint32_t 	blob_size;
-
-	uint16_t cpu_to_le16(uint16_t val16);
-    uint32_t cpu_to_le32(uint32_t val32);
-    void blob_write8(std::ofstream &dumpFile, uint8_t val);
-    void blob_write_cpu_to_le16(std::ofstream &dumpFile, uint16_t val16);
-    void blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32);
-
-    uint32_t blob_get_base_protocol(const ProtoType prevType);
-
-    void blob_write_file_header(std::ofstream &dumpFile);
-    void blob_write_blob_name(std::ofstream &dumpFile, const char *name);
-    void blob_write_bytecode(std::ofstream &dumpFile, CCodeSection *codeSect);
-    void blob_write_sp_profiles(std::ofstream &dumpFile, CCodeSection *codeSect);
-    void blob_write_ex_array(std::ofstream &dumpFile);
-    void blob_write_blob_size(std::ofstream &dumpFile);
-
-	void dumpBlob(std::string path);
-	void dumpBlobHeader(std::string blobFile, std::string blobHeaderFile);
-
-    //    end of Blob generation
-    //----------------------------------------------------------------------
-
-};
-
-class CTaskDef
+class CSoftParserTask
 {
   public:
     std::string name;
@@ -534,25 +362,25 @@ class CTaskDef
     std::vector< CCodeSection >  program;
     std::vector< CParameter >  	 parameters;
 
-    CSoftParseBlob             spb;
+    CSoftParserBlob				 spb;
 
   public:
-    CTaskDef();
-    ~CTaskDef();
+    CSoftParserTask();
+    virtual ~CSoftParserTask();
+
+    void generateBlob(std::string filePath, bool genIntermCode);
 
     bool FieldExists       ( const std::string fullFieldName) const;
     bool GetFieldProperties( const std::string fullFieldName,
                              uint32_t&         bitSize,
                              uint32_t&         bitOffset ) const;
-    std::string getShimNoFromCustom( const std::string protocol_name ) const;
     bool findSpProtocol(std::string protocol_name) const;
 
-    void deleteExecute  ();
-    void dumpSpParsed   (std::string path);
+    void deleteExecute();
+    void dumpSpParsed(std::string path);
 
     uint32_t getBaseAddresss(unsigned int index);
     void enableProtocolOnInit(std::string protocol_name, std::string parser_name);
-
 };
 
 #endif // TASKDEF_H

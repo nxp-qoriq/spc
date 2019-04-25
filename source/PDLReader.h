@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -35,11 +35,9 @@
 
 class CPDLReader {
 public:
-    CPDLReader();
+    CPDLReader(CSoftParserTask* pTaskData);
 
-    void setTaskData( CTaskDef* pTaskData );
-    void parseNetPDL( std::string filename );
-    void setSoftParse( bool newSoftParse );
+    void parseNetPDL( std::string filename, bool softParse );
     bool getSoftParse () const;
 
     void parseProtocol     (CProtocol* protocol, xmlNodePtr pNode );
@@ -63,8 +61,8 @@ protected:
     static void checkUnknownAttr( xmlNodePtr pNode, int num, ... );
 
 private:
-    CTaskDef* task;
-    bool      softParse;
+    CSoftParserTask* task;
+    bool      m_softParse;
     CGenericError error;
 };
 

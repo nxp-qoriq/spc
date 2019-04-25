@@ -46,59 +46,8 @@ extern "C"
 #define PRS_PARAM_SIZE                       64                  /**< Size in bytes of parameters area */
 #define PRS_NUM_OF_LABELS                    32                  /**< Maximum number of SW parser labels */
 
-/**************************************************************************//**
- @Description   A structure for SW parser labels
- *//***************************************************************************/
-typedef struct t_PrsLabelParams {
-    uint32_t                instructionOffset;              /**< SW parser label instruction offset (2 bytes
-                                                                 resolution), relative to Parser RAM. */
-    enum net_prot         	hdr;                            /**< The existence of this header will invoke
-                                                                 the SW parser code; Use  NET_PROT_NONE
-                                                                 to indicate that sw parser is to run
-                                                                 independent of the existence of any protocol
-                                                                 (run before HW parser). */
-    uint8_t                 indexPerHdr;                    /**< Normally 0, if more than one SW parser
-                                                                 attachments for the same header, use this
-                                                                 index to distinguish between them. */
-} t_PrsLabelParams;
 
-
-/**************************************************************************//**
- @Description   A structure for SW parser
- *//***************************************************************************/
-typedef struct t_PrsSwParams {
-    bool                    override;                   /**< FALSE to invoke a check that nothing else
-                                                             was loaded to this address, including
-                                                             internal patches.
-                                                             TRUE to override any existing code.*/
-    uint32_t                size;                       /**< SW parser code size in bytes */
-    uint16_t                base;                       /**< SW parser base in bytes
-                                                             must be larger than 0x40*/
-    uint8_t                 *p_Code;                    /**< SW parser code */
-    uint8_t                 swPrsDataParams[PRS_PARAM_SIZE];
-                                                        /**< SW parser data (parameters) */
-    uint8_t                 numOfLabels;                /**< Number of labels for SW parser. */
-    t_PrsLabelParams   		labelsTable[PRS_NUM_OF_LABELS];
-                                                        /**< SW parser labels table, containing
-                                                             numOfLabels entries */
-} t_PrsSwParams;
-
-typedef struct spc_model_t {
-
-    unsigned int             format_version;
-    t_PrsSwParams		     sp;                  ///< Soft parser configuration
-    uint8_t                  spCode[MAX_SP_CODE_SIZE];
-
-} spc_model;
-
-
-int spc_compile(
-		spc_model*   model,
-		const char*  nameCfg,
-        const char*  namePDL,
-        const char*  nameSP,
-        bool genIntermCode
-);
+int spc_compile(const char*  nameCfg, const char*  namePDL, const char*  nameSP, bool genIntermCode);
 
 const char* spc_get_error( void );
 

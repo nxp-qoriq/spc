@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -34,8 +34,7 @@
 
 class ConfigReader {
 public:
-	ConfigReader();
-    void setTaskData( CTaskDef* pTaskData );
+	ConfigReader(CSoftParserTask* pTaskData);
     void parseConfig( std::string filename );
 
     void parseSoc     	   (xmlNodePtr pNode );
@@ -51,7 +50,7 @@ protected:
     static void checkUnknownAttr( xmlNodePtr pNode, int num, ... );
 
 private:
-    CTaskDef* task;
+    CSoftParserTask* task;
     CGenericError error;
     uint32_t  spParameterOffset;
 };

@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -34,21 +34,16 @@
 using namespace logger;
 
 
-CPDLReader::CPDLReader ()
+CPDLReader::CPDLReader(CSoftParserTask* pTaskData)
 {
-    softParse = false;
-}
-
-void CPDLReader::setSoftParse( bool newSoftParse )
-{
-    softParse = newSoftParse;
+	m_softParse = false;
+    task = pTaskData;
 }
 
 bool CPDLReader::getSoftParse() const
 {
-    return softParse;
+    return m_softParse;
 }
-
 
 // Aid function to retrieve XML element's attribute
 std::string CPDLReader::getAttr( xmlNodePtr pNode, const char* attr )
@@ -97,20 +92,14 @@ void CPDLReader::checkUnknownAttr ( xmlNodePtr pNode, int num, ...)
     pNode->properties=attributes;
 }
 
-
-void CPDLReader::setTaskData( CTaskDef* pTaskData )
-{
-    task = pTaskData;
-}
-
-
 /////////////////////////////////////////////////////////////////////////////
 // CPDLReader::parseNetPDL
 // Process the root node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseNetPDL( std::string filename )
+void CPDLReader::parseNetPDL( std::string filename, bool softParse )
 {
+	m_softParse = softParse;
+
     // LibXML preparations
     xmlInitParser();
     // init line numbers - critical for Linux
@@ -196,8 +185,7 @@ CPDLReader::parseNetPDL( std::string filename )
 // CPDLReader::parseProtocol
 // Process the 'protocol' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
+void CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"protocol" ) ) {
@@ -219,17 +207,15 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
     checkUnknownAttr(pNode, 6, "name", "longname", "showsumtemplate",
                                "comment", "description", "prevproto");
 
-    //Check only custom protocols not HW protocols
-    if (softParse) {
+    if (m_softParse) {
+
+        // Check only custom protocols not HW protocols
 		if (strlen(protocol->name.c_str()) > 8) {
 			CGenericErrorLine::printWarning("Protocol name is too long (maximum limit is 8 characters) : " + WARN_UNEXPECTED_NODE,
 					xmlGetLineNo(pNode), (char*)pNode->name );
 		}
-    }
 
-    // In softparse get prevproto
-    if (getSoftParse())
-    {
+		// In softparse get prevproto
         std::string prevprotonames = getAttr( pNode, "prevproto" );
         if (prevprotonames == "")
             throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, xmlGetLineNo(pNode),
@@ -260,7 +246,7 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
     while ( 0 != cur ) {
         // execute-code
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"execute-code" ) ) {
-            if (getSoftParse())
+            if (m_softParse)
                 parseExecute (protocol, cur);
         }
         // format
@@ -294,8 +280,7 @@ CPDLReader::parseProtocol( CProtocol* protocol, xmlNodePtr pNode )
 // CPDLReader::parseFormat
 // Process the 'format' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseFormat( CProtocol* protocol, xmlNodePtr pNode )
+void CPDLReader::parseFormat( CProtocol* protocol, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"format" ) ) {
@@ -334,8 +319,7 @@ CPDLReader::parseFormat( CProtocol* protocol, xmlNodePtr pNode )
 // CPDLReader::parseBlock
 // Process the 'block' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseBlock( CProtocol* protocol, xmlNodePtr pNode )
+void CPDLReader::parseBlock( CProtocol* protocol, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"block" ) ) {
@@ -379,8 +363,7 @@ CPDLReader::parseBlock( CProtocol* protocol, xmlNodePtr pNode )
 // CPDLReader::parseFields
 // Process the 'fields' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseFields( CProtocol* protocol, xmlNodePtr pNode )
+void CPDLReader::parseFields( CProtocol* protocol, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"fields" ) ) {
@@ -432,8 +415,7 @@ CPDLReader::parseFields( CProtocol* protocol, xmlNodePtr pNode )
 // CPDLReader::parseField
 // Process the 'field' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseField( CField* field, xmlNodePtr pNode )
+void CPDLReader::parseField( CField* field, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"field" ) ) {
@@ -528,8 +510,7 @@ CPDLReader::parseField( CField* field, xmlNodePtr pNode )
 // CPDLReader::parseExecute
 // Process the 'execute_code' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecute( CProtocol* protocol, xmlNodePtr pNode )
+void CPDLReader::parseExecute( CProtocol* protocol, xmlNodePtr pNode )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"execute-code" ) ) {
@@ -581,8 +562,7 @@ CPDLReader::parseExecute( CProtocol* protocol, xmlNodePtr pNode )
 // CPDLReader::parseExecuteSection
 // Process the 'before, after, verify, init' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNode, bool virtualSection)
+void CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNode, bool virtualSection)
 {
     if (!virtualSection)
     {
@@ -591,7 +571,6 @@ CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNo
         executeSection->confirmCustom   = getAttr(pNode, "confirmcustom" );
 
         checkUnknownAttr(pNode, 2, "when", "confirmcustom");
-
     }
 
     // Parse children nodes
@@ -666,10 +645,9 @@ CPDLReader::parseExecuteSection( CExecuteSection* executeSection, xmlNodePtr pNo
 // CPDLReader::parseExecuteAssign
 // Process the 'assign-variable' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteAssign( CExecuteAssign* executeAssign, xmlNodePtr pNode )
+void CPDLReader::parseExecuteAssign( CExecuteAssign* executeAssign, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"assign-variable" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -693,10 +671,9 @@ CPDLReader::parseExecuteAssign( CExecuteAssign* executeAssign, xmlNodePtr pNode 
 // CPDLReader::parseExecuteIf
 // Process the 'if' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteIf( CExecuteIf* executeIf, xmlNodePtr pNode )
+void CPDLReader::parseExecuteIf( CExecuteIf* executeIf, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"if" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -745,10 +722,9 @@ CPDLReader::parseExecuteIf( CExecuteIf* executeIf, xmlNodePtr pNode )
 // CPDLReader::parseExecuteLoop
 // Process the 'loop' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteLoop( CExecuteLoop* executeLoop, xmlNodePtr pNode )
+void CPDLReader::parseExecuteLoop( CExecuteLoop* executeLoop, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"loop" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -781,10 +757,9 @@ CPDLReader::parseExecuteLoop( CExecuteLoop* executeLoop, xmlNodePtr pNode )
 // CPDLReader::parseExecuteInline
 // Process the 'inline' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteInline(CExecuteInline* executeInline, xmlNodePtr pNode )
+void CPDLReader::parseExecuteInline(CExecuteInline* executeInline, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"inline" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -825,10 +800,9 @@ CPDLReader::parseExecuteInline(CExecuteInline* executeInline, xmlNodePtr pNode )
 // CPDLReader::parseExecuteSwitch
 // Process the 'switch' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteSwitch( CExecuteSwitch* executeSwitch, xmlNodePtr pNode )
+void CPDLReader::parseExecuteSwitch( CExecuteSwitch* executeSwitch, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"switch" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -878,10 +852,9 @@ CPDLReader::parseExecuteSwitch( CExecuteSwitch* executeSwitch, xmlNodePtr pNode 
 // CPDLReader::parseExecuteCase
 // Process the 'case' node, inside 'switch' in NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteCase( CExecuteCase* executeCase, xmlNodePtr pNode )
+void CPDLReader::parseExecuteCase( CExecuteCase* executeCase, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"case" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -908,10 +881,9 @@ CPDLReader::parseExecuteCase( CExecuteCase* executeCase, xmlNodePtr pNode )
 // CPDLReader::parseExecuteAssign
 // Process the 'action' node of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteAction( CExecuteAction* executeAction, xmlNodePtr pNode )
+void CPDLReader::parseExecuteAction( CExecuteAction* executeAction, xmlNodePtr pNode )
 {
-//     Make sure we process the right node
+	//Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"action" ) ) {
         throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
     }
@@ -933,8 +905,7 @@ CPDLReader::parseExecuteAction( CExecuteAction* executeAction, xmlNodePtr pNode 
 // CPDLReader::parseExecuteSetresetfaf
 // Process the 'set' & 'reset' nodes of the NetPDL
 /////////////////////////////////////////////////////////////////////////////
-void
-CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode )
+void CPDLReader::parseExecuteSetresetfaf  (CExecuteSetresetfaf*   executeSetresetfaf,   xmlNodePtr pNode )
 {
 	// Make sure we process the right node
 	if (!xmlStrcmp( pNode->name, (const xmlChar*)"set"))

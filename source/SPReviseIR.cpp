@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,7 +22,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * File Name : FMCSPReviseIR.cpp
+ * File Name : SPReviseIR.cpp
  *
  * ===================================================================*/
 
@@ -32,10 +32,10 @@ void CIR::reviseEntireIR ()
 {
     uint32_t i;
     for (i = 0; i < protocolsIRs.size(); i++)
-        protocolsIRs[i].reviseProtocolIR(this);
+        protocolsIRs[i].reviseProtocolIR();
 }
 
-void CProtocolIR::reviseProtocolIR(CIR *ir)
+void CProtocolIR::reviseProtocolIR()
 {
     uint32_t i;
     bool revised = 1;
@@ -46,7 +46,7 @@ void CProtocolIR::reviseProtocolIR(CIR *ir)
         {
             if (statements[i].type == ST_IFGOTO &&
                 statements[i].expr->type == EAND)
-                    reviseAnd(i, ir, revised);
+                    reviseAnd(i, revised);
             if (statements[i].type == ST_IFGOTO &&
                 statements[i].expr->type == EOR)
                     reviseOr(i, revised);
@@ -146,7 +146,7 @@ IFGOTO LABEL_1               IFNGOTO LABEL_2
         COND_B                   COND_B
                              GOTO LABEL_1
                              LABEL_2:        */
-void CProtocolIR::reviseAnd(uint32_t i, CIR *ir, bool &revised)
+void CProtocolIR::reviseAnd(uint32_t i, bool &revised)
 {
     std::vector <CStatement>::iterator statementsI;
     CStatement falseLStatement, gStatement, newStatement1, newStatement2;

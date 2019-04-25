@@ -1,7 +1,7 @@
 #==========================================================================
 #
 # The MIT License (MIT)
-# Copyright 2018 NXP
+# Copyright 2018-2019 NXP
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -54,19 +54,18 @@ CXXFLAGS = $(CFLAGS)
 
 default: libspc.a spc
 
-objects = ./libspc.o                                                    \
+objects = ./libspc.o                                                \
      ./PDLReader.o ./ConfigReader.o                                                   \
-     ./SPCreateCode.o ./SPDumpCode.o ./SPDumpIR.o              \
-     ./SPDumpParse.o ./SPIR.o                        \
-     ./SPReviseCode.o ./SPReviseIR.o ./SoftParser.o                    \
-     ./SPExpr.o ./SPExprLexer.o                                   \
-     ./SPModel.o                                                    \
-     ./TaskDef.o ./Utils.o ./GenericError.o                    \
-     ./spa/dll.o ./spa/sp.o ./spa/sp_assembler.tab.o              \
+     ./SPCreateCode.o ./SPDumpCode.o ./SPDumpIR.o                   \
+     ./SPDumpParse.o ./SPIR.o                                       \
+     ./SPReviseCode.o ./SPReviseIR.o ./SoftParser.o                 \
+     ./SPExpr.o ./SPExprLexer.o                                     \
+     ./TaskDef.o ./Utils.o ./GenericError.o                         \
+     ./spa/dll.o ./spa/sp.o ./spa/sp_assembler.tab.o                \
      ./spa/sp_private.o ./spa/htbl.o ./spa/lex._sp_assembler_yy.o
 
 headers = spc.h GenericError.h \
-          SPModel.h PDLReader.h ConfigReader.h SoftParser.h      \
+          PDLReader.h ConfigReader.h SoftParser.h      \
           SPCreateCode.h SPIR.h TaskDef.h Utils.h      \
           SPExpr.hpp logger.hpp 
 

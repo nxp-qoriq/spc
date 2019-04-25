@@ -47,9 +47,6 @@
 
 #include <cstdlib>
 
-spc_model_t model = { 0 };
-
-
 void set_log_level( std::string log_level_name )
 {
     int int_log_value = LOG_INFO;
@@ -138,11 +135,10 @@ int main( int argc, char* argv[] )
 		if (!nameSP.isSet())
 			throw CGenericError(ERR_SP_REQUIRED);
 
-        int ret = spc_compile(&model,
-        			nameCfg.getValue().c_str(),
-                    namePDL.getValue().c_str(),
-                    nameSP.getValue().c_str(),
-                    interm_code.getValue());
+        int ret = spc_compile(	nameCfg.getValue().c_str(),
+                    			namePDL.getValue().c_str(),
+                    			nameSP.getValue().c_str(),
+                    			interm_code.getValue()  );
 
         if ( ret != 0 ) {
 			//compile error
