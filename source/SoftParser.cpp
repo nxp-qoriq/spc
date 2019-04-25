@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -33,31 +33,28 @@
 using namespace logger;
 using namespace std;
 
-
 /**
  * softparser main routine
  *
  * 	@task: Task data definition
  * 	@filePath: Soft Parser XML file
- * 	@baseAddress: Soft Parser base address in bytes: must be larger than 0x40
- * 			- TODO: not used: it is by default
  * 	@genIntermCode: Generate intermediate code
  *
  */
-void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, bool genIntermCode)
+void softparser(CTaskDef *task, std::string filePath, bool genIntermCode)
 {
     CIR               newIR;
     CCode             newCode;
     std::string       fileNoExt, baseName;
-    unsigned char     binary1[CODE_SIZE] = {0};
+    unsigned char     binary[CODE_SIZE] = {0};
     sp_label_list_t   *labels, *labelsIter;
-
-    //TODO: baseAddress is coming zero because must be retrieved from XML or used default
-    baseAddress = task->getBaseAddresss();
-
-    //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
-    //baseAddress must be 4 bytes aligned (so it is divisible by 2)
-    int spBase = baseAddress / 2;
+    std::string      sectAsmCode;
+    unsigned int baseAddress, spBase;
+    std::string protocolName;
+	std::vector< std::string >::const_iterator it;
+	std::vector <CExtension> extns;
+    unsigned int i;
+    unsigned int actualCodeSize;
 
     /*init tables*/
     RA::Instance().initRA();
@@ -81,52 +78,78 @@ void softparser(CTaskDef *task, std::string filePath, unsigned int baseAddress, 
 
     newIR.setDebug(debug_l3);
 
-    /*Parse, create IR and create asm*/
+    /*Parse, create IR and create ASM */
     newIR.createIR(task);
     newCode.createCode(newIR);
 
-    /*assemble*/
-    unsigned int actualCodeSize = assemble((char*)newCode.getAsmOutput().c_str(), binary1, &labels, debug_l2, spBase);
+    //for each code section
+    for (i = 0; i < task->program.size(); i++)
+    {
+    	sectAsmCode = "";
+    	labels = NULL;
+    	memset(binary, 0, CODE_SIZE);
+    	extns.clear();
+    	baseAddress = task->getBaseAddresss(i);
 
-    /*return result*/
-    std::vector <CExtension> extns;
-    createExtensions(extns, newCode, labels);
+        //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
+        //baseAddress must be 4 bytes aligned (so it is divisible by 2)
+        spBase = baseAddress / 2;
 
-    task->spr.setTask(task);
-    task->spr.setBaseAddresss(baseAddress);
-    task->spr.setBinary(binary1, sizeof(binary1));
-    task->spr.setExtensions(extns);
-    task->spr.setSize(actualCodeSize);
+        //Build ASM section code from all protocols used in this section
+    	for ( it = task->program[i].protocols.begin();
+              it != task->program[i].protocols.end();
+              it++ )
+        {
+    		protocolName = *it;
 
-    /*not important as intermediate code
+    		sectAsmCode += newCode.getProtocolAsmCode(protocolName);
+        }
+
+        /* invoke the assembler */
+        actualCodeSize = assemble((char*)sectAsmCode.c_str(), binary, &labels, debug_l2, spBase);
+
+        /* return result */
+        createExtensions(&task->program[i], extns, newCode, labels);
+
+        /* setup section SPR */
+    	task->program[i].spr.setBaseAddresss(baseAddress);
+    	task->program[i].spr.setBinary(binary, sizeof(binary));
+    	task->program[i].spr.setSize(actualCodeSize);
+    	task->program[i].spr.setExtensions(extns);
+
+        /* Free memory */
+        while (labels)
+        {
+            labelsIter = labels->next_p;
+            free (labels->name);
+            free (labels);
+            labels = labelsIter;
+        }
+    }//for
+
+	task->spb.setTask(task);
+
+    /* this is not important as intermediate code
     if (genIntermCode)
     {
-    	task->spr.dumpHeader(baseName + ".h");
-    	task->spr.dumpBinary(baseName + ".bin");
+    	task->spb.dumpHeader(baseName + ".h");
+    	task->spb.dumpBinary(baseName + ".bin");
     }
     */
 
-	task->spr.dumpBlob(baseName + ".spb");
+	task->spb.dumpBlob(baseName + ".spb");
 
     if (genIntermCode)
     {
-    	task->spr.dumpBlobHeader(baseName + ".spb", baseName + "_blob.h");
+    	task->spb.dumpBlobHeader(baseName + ".spb", baseName + "_blob.h");
     }
 
-    /* Free memory*/
-    while (labels)
-    {
-        labelsIter = labels->next_p;
-        free (labels->name);
-        free (labels);
-        labels = labelsIter;
-    }
     newIR.deleteIR();
     task->deleteExecute();
     newCode.deleteCode();
 }
 
-unsigned int assemble (char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int spBase)
+unsigned int assemble(char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int spBase)
 {
 	sp_label_list_t *localLabels = NULL;
     sp_assembler_options_t asmOptions;
@@ -161,11 +184,14 @@ unsigned int assemble (char* asmResult, unsigned char* binary, sp_label_list_t *
     return asmOptions.result_code_size;
 }
 
-void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list_t *labels)
+void createExtensions (CCodeSection *codeSect, std::vector<CExtension> &extns, CCode code, sp_label_list_t *labels)
 {
 	sp_label_list_t *labelsIter;
-    for (unsigned int i=0; i<code.protocolsCode.size(); i++)
+    for (unsigned int i = 0; i < code.protocolsCode.size(); i++)
     {
+    	if (find(codeSect->protocols.begin(), codeSect->protocols.end(), code.protocolsCode[i].protocol.name) == codeSect->protocols.end())
+    		continue;
+
         labelsIter = labels;
         while (labelsIter) {
             if (labelsIter->name == code.protocolsCode[i].label.name)
@@ -178,25 +204,23 @@ void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list
                 break;
             }
             labelsIter = labelsIter->next_p;
-        }
+        }//while
         if (!labelsIter)
             throw CGenericError(ERR_INTERNAL_SP_ERROR, "Missing label");
-    }
+    }//for
 }
 
-uint32_t CTaskDef::getBaseAddresss()
+uint32_t CTaskDef::getBaseAddresss(unsigned int index)
 {
-	if (program.empty())
+	if (index < 0 || index >= program.size())
 		return SP_ASSEMBLER_BASE_ADDRESS;
 
-	//TODO: ONLY one bytecode sections is supported for now:
-	//  so take offset from the first section
-	return program[0].swOffset;
+	return program[index].swOffset;
 }
 
 void CTaskDef::enableProtocolOnInit(std::string protocol_name, std::string parser_name)
 {
-	for ( int i = 0; i < protocols.size(); i++ ) {
+	for ( unsigned int i = 0; i < protocols.size(); i++ ) {
         if ( protocols[i].name == protocol_name ) {
         	protocols[i].parsers.push_back(parser_name);
         	break;
@@ -204,31 +228,14 @@ void CTaskDef::enableProtocolOnInit(std::string protocol_name, std::string parse
 	}
 }
 
-/*
-   Detect CPU Endianness
-   returns 1 if CPU is LE, 0 in case of BE
-*/
-int detectEndianness()
-{
-	unsigned int x = 1;
-	char *c = (char*)&x;
-	return (int)*c;
-}
-
 CSoftParseResult::CSoftParseResult()
 {
-	cpuLE = detectEndianness();
 }
 
-void CSoftParseResult::setTask(CTaskDef *taskdef)
-{
-	task = taskdef;
-}
-
-void CSoftParseResult::setBinary(const uint8_t binary1[], const uint32_t size)
+void CSoftParseResult::setBinary(const uint8_t binary[], const uint32_t size)
 {
     for (unsigned int i = 0; i < size; i++)
-        this->p_Code[i] = binary1[i];
+        this->p_Code[i] = binary[i];
 }
 
 void CSoftParseResult::setBaseAddresss(const uint16_t baseAddress)
@@ -259,7 +266,29 @@ void CSoftParseResult::setExtensions(const std::vector <CExtension> extns)
     }
 }
 
-void CSoftParseResult::dumpHeader(std::string path) const
+/*
+   Detect CPU Endianness
+   returns 1 if CPU is LE, 0 in case of BE
+*/
+int detectEndianness()
+{
+	unsigned int x = 1;
+	char *c = (char*)&x;
+	return (int)*c;
+}
+
+CSoftParseBlob::CSoftParseBlob()
+{
+	cpuLE = (detectEndianness() != 0);
+}
+
+void CSoftParseBlob::setTask(CTaskDef *taskdef)
+{
+	task = taskdef;
+}
+
+#if 0
+void CSoftParseBlob::dumpHeader(std::string path) const
 {
     std::ofstream dumpFile;
     dumpFile.open(path.c_str(), std::ios::out);
@@ -319,7 +348,7 @@ void CSoftParseResult::dumpHeader(std::string path) const
 	dumpFile.close();
 }
 
-void CSoftParseResult::dumpBinary(std::string path) const
+void CSoftParseBlob::dumpBinary(std::string path) const
 {
     std::ofstream dumpFile;
     dumpFile.open(path.c_str(), std::ios::out | std::ios::binary);
@@ -334,7 +363,7 @@ void CSoftParseResult::dumpBinary(std::string path) const
 }
 
 /*Find the protocol name which should be used in the softpare.h file*/
-std::string CSoftParseResult::externProtoName(const ProtoType type)
+std::string CSoftParseBlob::externProtoName(const ProtoType type)
 {
     std::map< ProtoType, std::string >::iterator protocolsLabelsIterator;
     std::map< ProtoType, std::string> protocolsLabels;
@@ -375,6 +404,7 @@ std::string CSoftParseResult::externProtoName(const ProtoType type)
     else
         return protocolsLabels[type];
 }
+#endif
 
 //----------------------------------------------------------------------
 //    Blob generation
@@ -452,38 +482,38 @@ static inline uint32_t SwapUint32(uint32_t val)
                       ((val & 0xFF000000) >> 24));
 }
 
-uint16_t CSoftParseResult::cpu_to_le16(uint16_t val16)
+uint16_t CSoftParseBlob::cpu_to_le16(uint16_t val16)
 {
 	if (cpuLE)
 		return val16;
 	return SwapUint16(val16);
 }
 
-uint32_t CSoftParseResult::cpu_to_le32(uint32_t val32)
+uint32_t CSoftParseBlob::cpu_to_le32(uint32_t val32)
 {
 	if (cpuLE)
 		return val32;
 	return SwapUint32(val32);
 }
 
-void CSoftParseResult::blob_write_cpu_to_le16(std::ofstream &dumpFile, uint16_t val16)
+void CSoftParseBlob::blob_write_cpu_to_le16(std::ofstream &dumpFile, uint16_t val16)
 {
 	uint16_t le16 = cpu_to_le16(val16);
 	dumpFile.write((char*)&le16, 2);
 }
 
-void CSoftParseResult::blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32)
+void CSoftParseBlob::blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32)
 {
 	uint32_t le32 = cpu_to_le32(val32);
 	dumpFile.write((char*)&le32, 4);
 }
 
-void CSoftParseResult::blob_write8(std::ofstream &dumpFile, uint8_t val)
+void CSoftParseBlob::blob_write8(std::ofstream &dumpFile, uint8_t val)
 {
 	dumpFile.write((char*)&val, 1);
 }
 
-uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
+uint32_t CSoftParseBlob::blob_get_base_protocol(const ProtoType prevType)
 {
 	uint32_t base_proto = BLOB_BASE_PROTO_INVALID;
 
@@ -587,7 +617,7 @@ uint32_t CSoftParseResult::blob_get_base_protocol(const ProtoType prevType)
 	return base_proto;
 }
 
-void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
+void CSoftParseBlob::blob_write_file_header(std::ofstream &dumpFile)
 {
 	int sect_size;
 	uint32_t sp_rev, blob_rev;
@@ -631,7 +661,7 @@ void CSoftParseResult::blob_write_file_header(std::ofstream &dumpFile)
 	blob_size += sect_size;
 }
 
-void CSoftParseResult::blob_write_blob_name(std::ofstream &dumpFile, const char *name)
+void CSoftParseBlob::blob_write_blob_name(std::ofstream &dumpFile, const char *name)
 {
 	int i, sect_size, len, pad_len;
 
@@ -668,9 +698,9 @@ void CSoftParseResult::blob_write_blob_name(std::ofstream &dumpFile, const char 
 	blob_size += sect_size;
 }
 
-void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
+void CSoftParseBlob::blob_write_bytecode(std::ofstream &dumpFile, CCodeSection *codeSect)
 {
-	int i, sect_size, pad_size;
+	uint32_t i, sect_size, pad_size;
 	uint32_t flags;
 
 	//TODO: this prototype version works with only 1 Soft Parser protocol
@@ -681,15 +711,15 @@ void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
 	//TODO: this prototype version loads code in ALL parsers for now
 	flags |= (LOAD_IN_WRIOP_INGRESS | LOAD_IN_WRIOP_EGRESS | LOAD_IN_AIOP);
 
-	if (size % 4) {
-		pad_size = 4 * (size / 4 + 1) - size;
+	if (codeSect->spr.size % 4) {
+		pad_size = 4 * (codeSect->spr.size / 4 + 1) - codeSect->spr.size;
 	} else {
 		pad_size = 0;
 	}
 
 	/* Calculate Section Size */
 	sect_size = 16 +				/* Size (4) + TAG (4) + flags (4) + offset (4) */
-				size + pad_size;	/* bytecode size + pad */
+			codeSect->spr.size + pad_size;	/* bytecode size + pad */
 
 	/* Section Size */
 	blob_write_cpu_to_le32(dumpFile, sect_size);
@@ -702,11 +732,11 @@ void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
 
 	/* offset: Should be 4 bytes aligned
 	 * Must be a multiple of 4 in the [0x40, 0xFFC) range */
-	blob_write_cpu_to_le32(dumpFile, base);
+	blob_write_cpu_to_le32(dumpFile, codeSect->spr.base);
 
 	/* bytecode */
-    for (i = 0; i < size; i++)
-    	blob_write8(dumpFile, p_Code[i]);
+    for (i = 0; i < codeSect->spr.size; i++)
+    	blob_write8(dumpFile, codeSect->spr.p_Code[i]);
 	for (i = 0; i < pad_size; i++)
 		blob_write8(dumpFile, 0);
 
@@ -714,7 +744,7 @@ void CSoftParseResult::blob_write_bytecode(std::ofstream &dumpFile)
 	blob_size += sect_size;
 }
 
-void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
+void CSoftParseBlob::blob_write_sp_profiles(std::ofstream &dumpFile, CCodeSection *codeSect)
 {
 	int sect_size = 0, profile_cfg, i, j;
 	uint8_t	flags, nameSize;
@@ -722,9 +752,9 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 
 	/* Count the number of profiles configured */
 	profile_cfg = 0;
-	for (i = 0; i < numOfLabels; i++)
+	for (i = 0; i < codeSect->spr.numOfLabels; i++)
 	{
-		uint32_t baseProtocol = blob_get_base_protocol(labelsTable[i].prevType[0]);
+		uint32_t baseProtocol = blob_get_base_protocol(codeSect->spr.labelsTable[i].prevType[0]);
 
 		//skip invalid protocols
 		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
@@ -748,9 +778,9 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 	blob_write_cpu_to_le32(dumpFile, 0);
 
 	/* Profiles configuration */
-	for (i = 0; i < numOfLabels; i++)
+	for (i = 0; i < codeSect->spr.numOfLabels; i++)
 	{
-		uint32_t baseProtocol = blob_get_base_protocol(labelsTable[i].prevType[0]);
+		uint32_t baseProtocol = blob_get_base_protocol(codeSect->spr.labelsTable[i].prevType[0]);
 
 		//skip invalid protocols
 		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
@@ -759,20 +789,20 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		/* Profiles cfg - name (8) */
 		memset(profile_name, 0, 9);
 
-		nameSize = strlen(labelsTable[i].protocol.name.c_str());
+		nameSize = strlen(codeSect->spr.labelsTable[i].protocol.name.c_str());
 		if (nameSize > 8) {
 			CGenericError::printWarning("Protocol name is too long (maximum limit is 8 characters)");
 			nameSize = 8;
 		}
-		memcpy(profile_name, labelsTable[i].protocol.name.c_str(), nameSize);
+		memcpy(profile_name, codeSect->spr.labelsTable[i].protocol.name.c_str(), nameSize);
 		for (j = 0; j < 8; j++)
 			blob_write8(dumpFile, profile_name[j]);
 
 		/* Profiles cfg - flags (1) */
 		flags = 0;
 	    std::vector< std::string >::const_iterator it;
-	    for ( it = labelsTable[i].protocol.parsers.begin();
-	          it != labelsTable[i].protocol.parsers.end();
+	    for ( it = codeSect->spr.labelsTable[i].protocol.parsers.begin();
+	          it != codeSect->spr.labelsTable[i].protocol.parsers.end();
 	          ++it )
 	    {
 	    	std::string parser = *it;
@@ -799,7 +829,7 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 		blob_write8(dumpFile, 0);
 
 		/* Seq start entry point (2) */
-		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * labelsTable[i].position));
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * codeSect->spr.labelsTable[i].position));
 
 		/* Base protocol (4) */
 		blob_write_cpu_to_le32(dumpFile, baseProtocol);
@@ -809,7 +839,7 @@ void CSoftParseResult::blob_write_sp_profiles(std::ofstream &dumpFile)
 	blob_size += sect_size;
 }
 
-void CSoftParseResult::blob_write_ex_array(std::ofstream &dumpFile)
+void CSoftParseBlob::blob_write_ex_array(std::ofstream &dumpFile)
 {
 	int sect_size = 0, i, j, nameSize;
 	int paramNo = task->parameters.size();
@@ -953,14 +983,15 @@ void CSoftParseResult::blob_write_ex_array(std::ofstream &dumpFile)
 	blob_size += sect_size;
 }
 
-void CSoftParseResult::blob_write_blob_size(std::ofstream &dumpFile)
+void CSoftParseBlob::blob_write_blob_size(std::ofstream &dumpFile)
 {
 	dumpFile.seekp(12);
 	blob_write_cpu_to_le32(dumpFile, blob_size);
 }
 
-void CSoftParseResult::dumpBlob(std::string path)
+void CSoftParseBlob::dumpBlob(std::string path)
 {
+	int i;
     std::ofstream dumpFile;
     dumpFile.open(path.c_str(), std::ios::out | std::ios::binary);
 
@@ -973,10 +1004,12 @@ void CSoftParseResult::dumpBlob(std::string path)
     blob_write_blob_name(dumpFile, task->name.c_str());
 
     /* Bytecode */
-    blob_write_bytecode(dumpFile);
+    for (i = 0; i < task->program.size(); i++)
+    	blob_write_bytecode(dumpFile, &task->program[i]);
 
     /* SP Profiles */
-    blob_write_sp_profiles(dumpFile);
+    for (i = 0; i < task->program.size(); i++)
+    	blob_write_sp_profiles(dumpFile, &task->program[i]);
 
     /* Examination array */
     blob_write_ex_array(dumpFile);
@@ -987,7 +1020,7 @@ void CSoftParseResult::dumpBlob(std::string path)
 	dumpFile.close();
 }
 
-void CSoftParseResult::dumpBlobHeader(std::string blobFile, std::string blobHeaderFile)
+void CSoftParseBlob::dumpBlobHeader(std::string blobFile, std::string blobHeaderFile)
 {
     char ch;
     int n = 0, i = 0, val;

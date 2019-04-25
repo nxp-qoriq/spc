@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -2394,7 +2394,9 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
    htbl_entry_t                  *entry_p;
    _sp_label_t                 *label_obj_p;
    _sp_assembler_instruction_t *instr_p;
+#ifdef _ADD_LEADING_PAD_
    uint32_t                       leading_pad;
+#endif
    uint32_t                       count;
    sp_label_list_t             *label_node_p;
    sp_label_list_t             *prev_p = NULL;
@@ -2467,6 +2469,7 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
     * Buffer
     * ====================================================================*/
 
+#ifdef _ADD_LEADING_PAD_
    /* -------------------------------------------------------
     * Add leading pad if instructions do not start at
     * default location.
@@ -2474,6 +2477,8 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
 
    leading_pad = (ctx_p->options).program_space_base_address - SP_PARSE_PROGRAM_DEFAULT_BASE_ADDRESS;
 
+
+   // TODO: Remove leading padding: This is not needed
    for (count = 0;
         count <  leading_pad;
         count++)
@@ -2486,6 +2491,7 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
       buffer_p[cur_byte] = 0;
       cur_byte++;
    }
+#endif
 
    /* -------------------------------------------------------
     * Array of words that defines the soft parse instructions.
@@ -2514,8 +2520,8 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
                                  node_p);
    }
 
+#ifdef _ADD_LEADING_PAD_
    /* Pad array to max size */
-
    for (count = 0;
         count <  _SP_MAX_INSTR_WORDS - total_instr_words - leading_pad;
         count++)
@@ -2528,6 +2534,7 @@ sp_error_code_t _sp_assembler_save_instructions (_sp_assembler_parser_context_t 
       buffer_p[cur_byte] = 0;
       cur_byte++;
    }
+#endif
 
    return (sp_ok_e);
 }

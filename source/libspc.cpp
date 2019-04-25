@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -63,7 +63,6 @@ int spc_compile(spc_model*   cmodel,
 	const char*  nameCfg,
     const char*  namePDL,
     const char*  nameSP,
-    unsigned int swOffset,	// TODO: not used: it is by default
     bool genIntermCode)
 {
     error_text   = "";
@@ -91,6 +90,7 @@ int spc_compile(spc_model*   cmodel,
 		pdlReader.parseNetPDL( nameSP );
 
 		// Configuration file processing must be after SP was parsed
+		// in order to be able to check if desired protocols exists in NetPDL file
         if (nameCfg) {
             // Process configuration file
             ConfigReader cfgReader;
@@ -99,26 +99,7 @@ int spc_compile(spc_model*   cmodel,
         }
 
         //call soft parser
-		softparser(&task, nameSP, swOffset, genIntermCode);
-
-        CFMCModel model;
-        LOG( logger::DBG1 ) << logger::ind( 2 )
-                            << "Converting parsed task definition to internal representation ..."
-                            << std::endl;
-        
-		model.createModel( &task );
-
-        LOG( logger::DBG1 ) << logger::ind( -2 )
-                            << "Done"
-                            << std::endl;
-        LOG( logger::DBG1 ) << std::endl;
-
-
-		//copy model 
-		cmodel->sp = model.swPrs;
-		memcpy( cmodel->spCode, model.swPrs.p_Code, cmodel->sp.size );
-		cmodel->sp.p_Code = (uint8_t*)&(cmodel->spCode);
-
+		softparser(&task, nameSP, genIntermCode);
 
         LOG( logger::DBG1 ) << logger::ind( -2 )
                             << "Done"

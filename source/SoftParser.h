@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -37,8 +37,8 @@ extern "C" {
 }
 
 
-void softparser (CTaskDef *task, std::string currentPath, unsigned int baseAddress, bool genIntermCode);
+void softparser (CTaskDef *task, std::string currentPath, bool genIntermCode);
 unsigned int assemble   (char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug, int spBase);
-void createExtensions (std::vector<CExtension> &extns, CCode code, sp_label_list_t *labels);
+void createExtensions (CCodeSection *codeSect, std::vector<CExtension> &extns, CCode code, sp_label_list_t *labels);
 
 #endif // SP_H

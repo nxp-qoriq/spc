@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -31,22 +31,34 @@
 void CCode::prepareEntireCode ()
 {
     uint32_t i, j;
+    std::string protocolAsmOutput;
+    std::string protocolCodeOutput;
     asmOutput = ""; codeOutput = "";
 
     for (i = 0; i < protocolsCode.size(); i++)
     {
+    	protocolAsmOutput = "";
+    	protocolCodeOutput = "";
         for (j = 0; j < protocolsCode[i].instructions.size(); j++)
         {
             if (j == 0) {
                 protocolsCode[i].instructions[j].flags.ifFirstLabel = 1;
             }
-            protocolsCode[i].instructions[j].prepareAsm(asmOutput);
-            protocolsCode[i].instructions[j].prepareCode(codeOutput);
-            asmOutput+= "\n";
-            codeOutput += "\n";
+            protocolsCode[i].instructions[j].prepareAsm(protocolAsmOutput);
+            protocolsCode[i].instructions[j].prepareCode(protocolCodeOutput);
+            protocolAsmOutput += "\n";
+            protocolCodeOutput += "\n";
         }
-        codeOutput  += "\n";
-        asmOutput   += "\n";
+        protocolCodeOutput  += "\n";
+        protocolAsmOutput   += "\n";
+
+        //save protocol output
+        protocolsCode[i].asmOutput = protocolAsmOutput;
+        protocolsCode[i].codeOutput = protocolCodeOutput;
+
+        //collect protocols output
+        asmOutput += protocolAsmOutput;
+        codeOutput += protocolCodeOutput;
     }
 }
 
@@ -341,3 +353,20 @@ std::string CCode::getAsmOutput()
 {
     return asmOutput;
 }
+
+std::string CCode::getProtocolAsmCode(std::string prot_name)
+{
+	CProtocolCode protocolCode;
+	std::vector< CProtocolCode >::const_iterator it;
+
+	for ( it = protocolsCode.begin();
+          it != protocolsCode.end();
+          it++ )
+    {
+		protocolCode = *it;
+    	if (protocolCode.protocol.name == prot_name)
+    		return protocolCode.asmOutput;
+    }
+	return "";
+}
+

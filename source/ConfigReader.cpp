@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -32,6 +32,14 @@
 #include "logger.hpp"
 using namespace logger;
 
+static std::string availableParsers[] = {
+		HW_ACCEL_WRIOP_INGRESS,
+		HW_ACCEL_WRIOP_EGRESS,
+		HW_ACCEL_AIOP_INGRESS,
+		HW_ACCEL_AIOP_EGRESS,
+		HW_ACCEL_AIOP,
+		""
+};
 
 ConfigReader::ConfigReader ()
 {
@@ -250,33 +258,56 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
     checkUnknownAttr(pNode, 1, "offset");
 
     // Parse children nodes
-    xmlNodePtr cur = pNode->xmlChildrenNode;
-    while ( 0 != cur ) {
+    xmlNodePtr pCrtNode = pNode->xmlChildrenNode;
+    while ( 0 != pCrtNode ) {
 
-        if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-on-parser" ) ) {
-        	//TODO: support several bytecode sections
-        	CGenericErrorLine::printWarning(WARN_UNSUPPORTED, xmlGetLineNo(cur), (char*)cur->name);
+        if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"load-on-parser" ) ) {
+        	// Get known attributes
+            std::string parser_name = getAttr(pCrtNode, "name");
+            checkUnknownAttr(pCrtNode, 1, "name");
 
-        	//TODO: support also for: <load-on-parser name="all" />
+        	if (parser_name == "")
+        		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, pNode->line, "name", "load-on-parser");
+
+            int i = 0;
+            bool validParser = false;
+            while (availableParsers[i].length() > 0) {
+            	if (parser_name.compare(availableParsers[i]) == 0) {
+            		validParser = true;
+            		break;
+            	}
+            	i++;
+            }
+            if (!validParser)
+            	throw CGenericErrorLine(ERR_INVALID_ATTRIBUTE_VALUE, pNode->line, "name", "load-on-parser");
+
+            codeSection->parsers.push_back(parser_name);
+
+        	//TODO: add support also for: <load-on-parser name="all" />
         	//		if is missing then default is: "all"
         }
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"load-protocol" ) ) {
-        	//TODO: support several bytecode sections
-        	CGenericErrorLine::printWarning(WARN_UNSUPPORTED, xmlGetLineNo(cur), (char*)cur->name);
+        else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"load-protocol" ) ) {
+            // Get known attributes
+            std::string protocol_name = getAttr(pCrtNode, "name");
+            checkUnknownAttr(pCrtNode, 1, "name");
 
-        	//TODO: check the protocols loaded are defined in NetPDL protocol definition file
+            //check if the protocol is defined in NetPDL file
+            if (task->findSpProtocol(protocol_name))
+            	codeSection->protocols.push_back(protocol_name);
+            else
+            	throw CGenericErrorLine(ERR_UNDEFINED_PROTOCOL, pCrtNode->line, protocol_name);
         }
         // comment
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
-                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( pCrtNode->name, (const xmlChar*)"text" )  ) {
         }
         // other
         else {
             CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
-                                          xmlGetLineNo(cur), (char*)cur->name);
+                                          xmlGetLineNo(pCrtNode), (char*)pCrtNode->name);
         }
 
-        cur = cur->next;
+        pCrtNode = pCrtNode->next;
     }
 }
 
@@ -411,15 +442,6 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
     }
 }
 
-static std::string availableParsers[] = {
-		HW_ACCEL_WRIOP_INGRESS,
-		HW_ACCEL_WRIOP_EGRESS,
-		HW_ACCEL_AIOP_INGRESS,
-		HW_ACCEL_AIOP_EGRESS,
-		HW_ACCEL_AIOP,
-		""
-};
-
 void ConfigReader::parseDevParser(xmlNodePtr pNode)
 {
 	// Make sure we process the right node
@@ -457,7 +479,7 @@ void ConfigReader::parseDevParser(xmlNodePtr pNode)
             std::string protocol_name = getAttr(pCrtNode, "protocol");
             checkUnknownAttr(pCrtNode, 1, "protocol");
 
-            //check the protocol is defined in NetPDL file
+            //check if the protocol is defined in NetPDL file
             if (task->findSpProtocol(protocol_name))
             	task->enableProtocolOnInit(protocol_name, parser_name);
             else

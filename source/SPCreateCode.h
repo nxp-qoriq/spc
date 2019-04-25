@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -268,6 +268,9 @@ class CProtocolCode {
     CLabel                     label;
     std::vector <CInstruction> instructions;
 
+    std::string      asmOutput;
+    std::string      codeOutput;
+
     /* revise functions */
     void reviseProtocolCode ();
     bool removeDoubleDefine();
@@ -329,6 +332,7 @@ class CCode
     /*result*/
   public:
     std::string getAsmOutput();
+    std::string getProtocolAsmCode(std::string prot_name);
 
     /*new/delete functions*/
   public:

@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -420,17 +420,6 @@ const int ASSEMBLER_BASE = SP_ASSEMBLER_BASE_ADDRESS;
 const int CODE_SIZE      = MAX_SP_CODE_SIZE; //4028 bytes
 
 
-class CCodeSection
-{
-	public:
-	CCodeSection() :  swOffset(ASSEMBLER_BASE) 	{};
-
-	public:
-		uint32_t		swOffset;
-		std::vector< std::string > parsers;
-		std::vector< std::string > protocols;
-};
-
 class CParameter
 {
 	public:
@@ -449,27 +438,53 @@ class CParameter
 class CSoftParseResult
 {
 public:
-    CTaskDef 				*task;
-    uint32_t                 size;                      /**< SW parser code size in bytes */
     uint16_t                 base;                      /**< SW parser base bytes
                                                              must be larger than 0x40*/
-    bool					 cpuLE;						/**< TRUE if CPU is LE */
+    uint32_t                 size;                      /**< SW parser code size in bytes */
     uint8_t                  p_Code[CODE_SIZE];         /**< SW parser code */
-    uint8_t                  swPrsDataParams[PRS_PARAM_SIZE];		/**< SW parser data (parameters) */
     uint8_t                  numOfLabels;               /**< Number of labels for SW parser. */
     std::vector <CExtension> labelsTable;               /**< SW parser labels table, containing
                                                              numOfLabels entries */
 
+public:
     CSoftParseResult();
-    void setTask		(CTaskDef *taskdef);
+
     void setSize        (const uint32_t baseAddress1);
-    void setBinary      (const uint8_t binary1[], const uint32_t size);
+    void setBinary      (const uint8_t binary[], const uint32_t size);
     void setBaseAddresss(const uint16_t baseAddress);
     void setExtensions  (const std::vector <CExtension> extns);
+
+};
+
+class CCodeSection
+{
+	public:
+	CCodeSection() :  swOffset(ASSEMBLER_BASE) 	{};
+
+	public:
+		uint32_t		swOffset;
+		std::vector< std::string > parsers;
+		std::vector< std::string > protocols;
+
+		CSoftParseResult           spr;
+};
+
+class CSoftParseBlob
+{
+public:
+    CTaskDef 				*task;
+    bool					 cpuLE;				/**< TRUE if CPU is LE */
+
+public:
+    CSoftParseBlob();
+
+    void setTask		(CTaskDef *taskdef);
+
+#if 0
     void dumpHeader     (std::string path) const;
 	void dumpBinary     (std::string path) const;
-    static std::string externProtoName (const ProtoType type);
-
+    std::string externProtoName (const ProtoType type);
+#endif
 
     //----------------------------------------------------------------------
     //    Blob generation
@@ -486,8 +501,8 @@ public:
 
     void blob_write_file_header(std::ofstream &dumpFile);
     void blob_write_blob_name(std::ofstream &dumpFile, const char *name);
-    void blob_write_bytecode(std::ofstream &dumpFile);
-    void blob_write_sp_profiles(std::ofstream &dumpFile);
+    void blob_write_bytecode(std::ofstream &dumpFile, CCodeSection *codeSect);
+    void blob_write_sp_profiles(std::ofstream &dumpFile, CCodeSection *codeSect);
     void blob_write_ex_array(std::ofstream &dumpFile);
     void blob_write_blob_size(std::ofstream &dumpFile);
 
@@ -498,7 +513,6 @@ public:
     //----------------------------------------------------------------------
 
 };
-
 
 class CTaskDef
 {
@@ -520,7 +534,7 @@ class CTaskDef
     std::vector< CCodeSection >  program;
     std::vector< CParameter >  	 parameters;
 
-    CSoftParseResult             spr;
+    CSoftParseBlob             spb;
 
   public:
     CTaskDef();
@@ -536,7 +550,7 @@ class CTaskDef
     void deleteExecute  ();
     void dumpSpParsed   (std::string path);
 
-    uint32_t getBaseAddresss();
+    uint32_t getBaseAddresss(unsigned int index);
     void enableProtocolOnInit(std::string protocol_name, std::string parser_name);
 
 };

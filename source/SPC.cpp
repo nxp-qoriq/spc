@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -142,7 +142,6 @@ int main( int argc, char* argv[] )
         			nameCfg.getValue().c_str(),
                     namePDL.getValue().c_str(),
                     nameSP.getValue().c_str(),
-                    SP_ASSEMBLER_BASE_ADDRESS,
                     interm_code.getValue());
 
         if ( ret != 0 ) {
