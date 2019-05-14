@@ -43,7 +43,7 @@
 #pragma warning(disable : 4996)
 #endif
 
-#define SPC_VERSION "1.0.0"
+#define SPC_VERSION "1.1.0"
 
 #include <cstdlib>
 
