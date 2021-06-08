@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -361,6 +361,8 @@ class CSoftParserTask
     std::vector< CProtocol >     protocols;
     std::vector< CCodeSection >  program;
     std::vector< CParameter >  	 parameters;
+    std::vector< CProfile >  	 profiles;
+    std::vector< CParser >  	 parsers;
 
     CSoftParserBlob				 spb;
 
@@ -375,12 +377,13 @@ class CSoftParserTask
                              uint32_t&         bitSize,
                              uint32_t&         bitOffset ) const;
     bool findSpProtocol(std::string protocol_name) const;
+    bool findSpProfile(std::string profile_name) const;
 
     void deleteExecute();
     void dumpSpParsed(std::string path);
 
     uint32_t getBaseAddresss(unsigned int index);
-    void enableProtocolOnInit(std::string protocol_name, std::string parser_name);
+    void enableProfileOnParser(std::string profile_name, std::string parser_name);
 };
 
 #endif // TASKDEF_H

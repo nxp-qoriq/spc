@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -40,10 +40,12 @@ public:
     void parseSoc     	   (xmlNodePtr pNode );
     void parseMemorymap	   (xmlNodePtr pNode);
     void parseBytecode     (CCodeSection* codeSection, xmlNodePtr pNode );
-    void parseParameters   (xmlNodePtr pNode );
+    void parseParameters   (xmlNodePtr pNode, std::string profile_name );
     void parseParameter    (CParameter* param, xmlNodePtr pNode );
-    void parseDevice       (xmlNodePtr pNode );
-    void parseDevParser    (xmlNodePtr pNode );
+    void parseSpProfiles	(xmlNodePtr pNode);
+    void parseProfile		(CProfile* profile, xmlNodePtr pNode);
+    void parseDevice       	(xmlNodePtr pNode);
+    void parseDevParser    	(CParser* parser, xmlNodePtr pNode);
 
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );

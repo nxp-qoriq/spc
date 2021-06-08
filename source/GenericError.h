@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018 NXP
+ * Copyright 2018,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -172,7 +172,7 @@ const std::string ERR_BIT_FIELD_LARGER8      = "A bit field cannot be larger tha
                                                "either split to several fields or change type to fixed: %1";
 const std::string ERR_ACCESS_BYTE_IN_FIELD   = "Accessing specific bytes in protocol field is not allowed: %1";
 
-/* Errors in xml elements*/
+/* Errors in xml syntax */
 const std::string ERR_IF_NO_TRUE             = "An if element must have an if-true child element: %1";
 const std::string ERR_AFTER_BEFORE_BEFORE    = "'Before' section appears after an 'after' section";
 const std::string ERR_MULTIPLE_BEFORE        = "Multiple before sections are not supported";
@@ -180,6 +180,9 @@ const std::string ERR_MULTIPLE_AFTER         = "Multiple after sections are not 
 const std::string ERR_SWITCH_EARLY_DEFAULT   = "Default condition can only appear after all other cases in switch";
 const std::string ERR_SWITCH_NO_CASE         = "Switch element without a case: %1";
 const std::string ERR_BEFORE_OTHER_PREV      = "Before element is now allowed when the previous protocol is %1";
+
+/* Incorrect configuration Errors in config xml */
+const std::string ERR_PROTOCOL_NOT_LOADED    = "Protocol '%2' needed by Profile '%1' is not loaded in a bytecode section on all parsers this profile is used";
 
 /* Errors in operations or immediate values*/
 const std::string ERR_SHIFT_BY_IMM           = "Shift only allowed by an immediate value";

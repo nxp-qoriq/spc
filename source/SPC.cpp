@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -43,7 +43,7 @@
 #pragma warning(disable : 4996)
 #endif
 
-#define SPC_VERSION "1.1.0"
+#define SPC_VERSION "1.2.0"
 
 #include <cstdlib>
 

@@ -1,7 +1,7 @@
 /* ============================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -38,7 +38,7 @@ extern "C"
 //include mc net header: /linux/drivers/staging/fsl-mc/include/net.h
 #include <net.h>
 
-#define SP_ASSEMBLER_BASE_COUNT 			0x20				/**< Soft Parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20 */
+#define SP_ASSEMBLER_BASE_COUNT 			0x20				/**< Soft Parser base in instruction words (1 word = 2 bytes): must be larger than 0x20 */
 #define SP_ASSEMBLER_BASE_ADDRESS 			(2 * SP_ASSEMBLER_BASE_COUNT)	/**< Soft Parser base address in bytes: must be larger than 0x40 */
 #define MAX_SP_CODE_SIZE      				0xFBC 				 /**< 4028 bytes */
 

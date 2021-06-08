@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -41,13 +41,14 @@ using namespace std;
 
 /**
  * Assembler wrapper function
+ * Returns: code size in bytes
  */
 static unsigned int assemble(int spBase, char* asmResult, unsigned char* binary, sp_label_list_t **labels, bool debug)
 {
 	sp_label_list_t *localLabels = NULL;
     sp_assembler_options_t asmOptions;
     asmOptions.debug_level = sp_debug_none_e;
-    asmOptions.program_space_base_address = spBase;
+    asmOptions.program_space_base_address = spBase; //sp base addr in words
     asmOptions.suppress_warnings = 0;
     asmOptions.warnings_are_errors = 0;
 
@@ -100,119 +101,6 @@ void CCode::createExtensions(CCodeSection *codeSect, std::vector<CExtension> &ex
         if (!labelsIter)
             throw CGenericError(ERR_INTERNAL_SP_ERROR, "Missing label");
     }//for
-}
-
-/**
- * generateBlob
- *
- * 	@filePath: Soft Parser XML file
- * 	@genIntermCode: Generate intermediate code
- *
- */
-void CSoftParserTask::generateBlob(std::string filePath, bool genIntermCode)
-{
-    std::string fileNoExt, baseName;
-    std::string sectAsmCode;
-    std::string protocolName;
-	std::vector<std::string>::const_iterator it;
-	std::vector<CExtension> extns;
-    unsigned char binary[MAX_SP_CODE_SIZE] = {0};
-    sp_label_list_t *labels, *labelsIter;
-    unsigned int baseAddress, spBase;
-    unsigned int i, codeSize;
-
-    CIR *pIR = new CIR();
-    CCode *pCode = new CCode();
-
-    /*init tables*/
-    RA::Instance().initRA();
-
-    /* set paths */
-    int pos    = filePath.find(".xml");
-    fileNoExt  = filePath.substr(0, pos);
-    pos = fileNoExt.find_last_of("/\\");
-    baseName   = fileNoExt.substr(pos + 1, fileNoExt.length() - pos - 1);
-
-    /* set debug levels */
-    bool debug_l2 = (LOG_GET_LEVEL() >= logger::DBG2);
-    bool debug_l3 = (LOG_GET_LEVEL() >= logger::DBG3);
-
-    if (genIntermCode)
-    {
-        pIR->setDumpIr(baseName + ".ir");
-        pCode->setDumpCode(baseName + ".code");
-        pCode->setDumpAsm(baseName + ".asm");
-        dumpSpParsed(baseName + ".parsed");
-    }
-
-    pIR->setDebug(debug_l3);
-
-    /*Parse, create IR and create ASM */
-    pIR->createIR(this);
-    pCode->createCode(pIR);
-
-    //for each code section
-    for (i = 0; i < program.size(); i++)
-    {
-    	sectAsmCode = "";
-    	labels = NULL;
-    	memset(binary, 0, MAX_SP_CODE_SIZE);
-    	extns.clear();
-    	baseAddress = getBaseAddresss(i);
-
-        //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
-        //baseAddress must be 4 bytes aligned (so it is divisible by 2)
-        spBase = baseAddress / 2;
-
-        //Build ASM section code from all protocols used in this section
-    	for ( it = program[i].protocols.begin();
-              it != program[i].protocols.end();
-              it++ )
-        {
-    		protocolName = *it;
-
-    		sectAsmCode += pCode->getProtocolAsmCode(protocolName);
-        }
-
-        /* invoke the assembler */
-    	codeSize = assemble(spBase, (char*)sectAsmCode.c_str(), binary, &labels, debug_l2);
-
-        /* return result */
-        pCode->createExtensions(&program[i], extns, labels);
-
-        /* setup section SPR */
-    	program[i].spr.setBaseAddresss(baseAddress);
-    	program[i].spr.setBinary(binary, sizeof(binary));
-    	program[i].spr.setSize(codeSize);
-    	program[i].spr.setExtensions(extns);
-
-        /* Free memory */
-        while (labels)
-        {
-            labelsIter = labels->next_p;
-            free (labels->name);
-            free (labels);
-            labels = labelsIter;
-        }
-    }//for
-
-    /* this is not important as intermediate code
-    if (genIntermCode)
-    {
-    	spb.dumpHeader(baseName + ".h");
-    	spb.dumpBinary(baseName + ".bin");
-    }
-    */
-
-	spb.dumpBlob(baseName + ".spb");
-
-    if (genIntermCode)
-    {
-    	spb.dumpBlobHeader(baseName + ".spb", baseName + "_blob.h");
-    }
-
-    delete pIR;
-    delete pCode;
 }
 
 CSoftParserResult::CSoftParserResult()
@@ -409,11 +297,11 @@ std::string CSoftParserBlob::externProtoName(const ProtoType type)
 
 /* BLOB version */
 #define BLOB_VER_MAJOR			1
-#define BLOB_VER_MINOR			0
+#define BLOB_VER_MINOR			1
 
 /* Parser HW block revision */
-#define SP_HW_REV_MAJOR		3
-#define SP_HW_REV_MINOR		2
+#define SP_HW_REV_MAJOR			3
+#define SP_HW_REV_MINOR			2
 
 
 /*
@@ -475,6 +363,210 @@ static inline uint32_t SwapUint32(uint32_t val)
                       ((val & 0x0000FF00) <<  8) |
                       ((val & 0x00FF0000) >>  8) |
                       ((val & 0xFF000000) >> 24));
+}
+
+void CProfile::enable_on_parser(std::string parser_name)
+{
+    if (parser_name.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
+    	flags_enable_parsers |= ENABLE_ON_WRIOP_INGRESS;
+    }
+    else if (parser_name.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
+    	flags_enable_parsers |= ENABLE_ON_WRIOP_EGRESS;
+    }
+	else if (parser_name.compare(HW_ACCEL_AIOP) == 0) {
+		flags_enable_parsers |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
+	}
+}
+
+void CCodeSection::set_load_on_parser(std::string parser_name)
+{
+	parsers.push_back(parser_name);
+
+    if (parser_name.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
+    	flags_load_parsers |= LOAD_IN_WRIOP_INGRESS;
+    	flags_enable_parsers |= ENABLE_ON_WRIOP_INGRESS;
+    }
+    else if (parser_name.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
+    	flags_load_parsers |= LOAD_IN_WRIOP_EGRESS;
+    	flags_enable_parsers |= ENABLE_ON_WRIOP_EGRESS;
+    }
+	else if (parser_name.compare(HW_ACCEL_AIOP) == 0) {
+		flags_load_parsers |= LOAD_IN_AIOP;
+		flags_enable_parsers |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
+	}
+}
+
+/**
+ * generateBlob
+ *
+ * 	@filePath: Soft Parser XML file
+ * 	@genIntermCode: Generate intermediate code
+ *
+ */
+void CSoftParserTask::generateBlob(std::string filePath, bool genIntermCode)
+{
+    std::string fileNoExt, baseName;
+    std::string sectAsmCode;
+    std::string protocolName;
+	std::vector<std::string>::const_iterator it;
+	std::vector<CExtension> extns;
+    unsigned char binary[MAX_SP_CODE_SIZE] = {0};
+    sp_label_list_t *labels, *labelsIter;
+    unsigned int baseAddress; 	//in bytes
+    unsigned int spBase; 		//in words
+    unsigned int codeSize;		//in bytes
+    unsigned int next_byte_offset; //in bytes
+    unsigned int next_byte_offset_wriop_ingress; //in bytes
+    unsigned int next_byte_offset_wriop_egress; //in bytes
+    unsigned int next_byte_offset_aiop; //in bytes
+    uint32_t flags = 0;
+    unsigned int i;
+
+    CIR *pIR = new CIR();
+    CCode *pCode = new CCode();
+
+    /*init tables*/
+    RA::Instance().initRA();
+
+    /* set paths */
+    int pos    = filePath.find(".xml");
+    fileNoExt  = filePath.substr(0, pos);
+    pos = fileNoExt.find_last_of("/\\");
+    baseName   = fileNoExt.substr(pos + 1, fileNoExt.length() - pos - 1);
+
+    /* set debug levels */
+    bool debug_l2 = (LOG_GET_LEVEL() >= logger::DBG2);
+    bool debug_l3 = (LOG_GET_LEVEL() >= logger::DBG3);
+
+    if (genIntermCode)
+    {
+        pIR->setDumpIr(baseName + ".ir");
+        pCode->setDumpCode(baseName + ".code");
+        pCode->setDumpAsm(baseName + ".asm");
+        dumpSpParsed(baseName + ".parsed");
+    }
+
+    pIR->setDebug(debug_l3);
+
+    /*Parse, create IR and create ASM */
+    pIR->createIR(this);
+    pCode->createCode(pIR);
+
+    next_byte_offset = 0;
+    next_byte_offset_wriop_ingress = SP_ASSEMBLER_BASE_ADDRESS;
+    next_byte_offset_wriop_egress = SP_ASSEMBLER_BASE_ADDRESS;
+    next_byte_offset_aiop = SP_ASSEMBLER_BASE_ADDRESS;
+
+    //for each code section
+    for (i = 0; i < program.size(); i++)
+    {
+    	sectAsmCode = "";
+    	labels = NULL;
+    	memset(binary, 0, MAX_SP_CODE_SIZE);
+    	extns.clear();
+    	baseAddress = getBaseAddresss(i);
+
+    	flags = program[i].flags_load_parsers;
+
+    	if (baseAddress == 0) {
+
+        	//next_byte_offset - must be max between parsers used:
+        	next_byte_offset = 0;
+
+            if (flags & LOAD_IN_WRIOP_INGRESS) {
+            	if (next_byte_offset_wriop_ingress > next_byte_offset)
+            		next_byte_offset = next_byte_offset_wriop_ingress;
+            }
+            else if (flags & LOAD_IN_WRIOP_EGRESS) {
+            	if (next_byte_offset_wriop_egress > next_byte_offset)
+            		next_byte_offset = next_byte_offset_wriop_egress;
+            }
+    		else if (flags & LOAD_IN_AIOP) {
+            	if (next_byte_offset_aiop > next_byte_offset)
+            		next_byte_offset = next_byte_offset_aiop;
+    		}
+
+            baseAddress = next_byte_offset;
+
+    	} else {
+    		next_byte_offset = baseAddress;
+
+            if (flags & LOAD_IN_WRIOP_INGRESS) {
+            	next_byte_offset_wriop_ingress = next_byte_offset;
+            }
+            else if (flags & LOAD_IN_WRIOP_EGRESS) {
+            	next_byte_offset_wriop_egress = next_byte_offset;
+            }
+    		else if (flags & LOAD_IN_AIOP) {
+    			next_byte_offset_aiop = next_byte_offset;
+    		}
+    	}
+
+        //SW parser base in instruction counts (1 word = 2 bytes): must be larger than 0x20
+        //baseAddress must be 4 bytes aligned (so it is divisible by 2)
+        spBase = baseAddress / 2;
+
+        //Build ASM section code from all protocols used in this section
+    	for ( it = program[i].protocols.begin();
+              it != program[i].protocols.end();
+              it++ )
+        {
+    		protocolName = *it;
+
+    		sectAsmCode += pCode->getProtocolAsmCode(protocolName);
+        }
+
+        /* invoke the assembler */
+    	codeSize = assemble(spBase, (char*)sectAsmCode.c_str(), binary, &labels, debug_l2);
+
+        /* return result */
+        pCode->createExtensions(&program[i], extns, labels);
+
+        /* setup section SPR */
+    	program[i].spr.setBaseAddresss(baseAddress);
+    	program[i].spr.setBinary(binary, sizeof(binary));
+    	program[i].spr.setSize(codeSize);
+    	program[i].spr.setExtensions(extns);
+
+    	next_byte_offset += codeSize;
+
+        if (flags & LOAD_IN_WRIOP_INGRESS) {
+        	next_byte_offset_wriop_ingress = next_byte_offset;
+        }
+        else if (flags & LOAD_IN_WRIOP_EGRESS) {
+        	next_byte_offset_wriop_egress = next_byte_offset;
+        }
+		else if (flags & LOAD_IN_AIOP) {
+			next_byte_offset_aiop = next_byte_offset;
+		}
+
+        /* Free memory */
+        while (labels)
+        {
+            labelsIter = labels->next_p;
+            free (labels->name);
+            free (labels);
+            labels = labelsIter;
+        }
+    }//for
+
+    /* this is not important as intermediate code
+    if (genIntermCode)
+    {
+    	spb.dumpHeader(baseName + ".h");
+    	spb.dumpBinary(baseName + ".bin");
+    }
+    */
+
+   	spb.dumpBlob(baseName + ".spb");
+
+    if (genIntermCode)
+    {
+    	spb.dumpBlobHeader(baseName + ".spb", baseName + "_blob.h");
+    }
+
+    delete pIR;
+    delete pCode;
 }
 
 uint16_t CSoftParserBlob::cpu_to_le16(uint16_t val16)
@@ -612,6 +704,24 @@ uint32_t CSoftParserBlob::blob_get_base_protocol(const ProtoType prevType)
 	return base_proto;
 }
 
+CExtension* CSoftParserBlob::get_extension_protocol(std::string protocol_name, uint8_t flags_parsers)
+{
+	for (int i = 0; i < task->program.size(); i++) {
+		CCodeSection *codeSect = &task->program[i];
+
+		//check all bits in flags_parsers are also enabled in codeSect->flags_enable_parsers
+		if ((flags_parsers & codeSect->flags_enable_parsers) == flags_parsers) {
+			//find if protocol exists in this section
+			for (int j = 0; j < codeSect->protocols.size(); j++) {
+	    		if (protocol_name.compare(codeSect->protocols[j]) == 0) {
+	    			return &codeSect->spr.labelsTable[j];
+	    		}
+	        }
+		}
+	}
+	return NULL;
+}
+
 void CSoftParserBlob::blob_write_file_header(std::ofstream &dumpFile)
 {
 	int sect_size;
@@ -696,31 +806,7 @@ void CSoftParserBlob::blob_write_blob_name(std::ofstream &dumpFile, const char *
 void CSoftParserBlob::blob_write_bytecode(std::ofstream &dumpFile, CCodeSection *codeSect)
 {
 	uint32_t i, sect_size, pad_size;
-	uint32_t flags = 0;
-
-    std::vector< std::string >::const_iterator it;
-    for (it = codeSect->parsers.begin();
-         it != codeSect->parsers.end();
-         it++)
-    {
-    	std::string parser = *it;
-
-        if (parser.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
-        	flags |= LOAD_IN_WRIOP_INGRESS;
-        }
-        else if (parser.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
-        	flags |= LOAD_IN_WRIOP_EGRESS;
-        }
-        else if (parser.compare(HW_ACCEL_AIOP_INGRESS) == 0) {
-        	flags |= LOAD_IN_AIOP;
-        }
-        else if (parser.compare(HW_ACCEL_AIOP_EGRESS) == 0) {
-        	flags |= LOAD_IN_AIOP;
-        }
-		else if (parser.compare(HW_ACCEL_AIOP) == 0) {
-			flags |= LOAD_IN_AIOP;
-		}
-    }
+	uint32_t flags = codeSect->flags_load_parsers;
 
 	if (codeSect->spr.size % 4) {
 		pad_size = 4 * (codeSect->spr.size / 4 + 1) - codeSect->spr.size;
@@ -755,93 +841,89 @@ void CSoftParserBlob::blob_write_bytecode(std::ofstream &dumpFile, CCodeSection 
 	blob_size += sect_size;
 }
 
-void CSoftParserBlob::blob_write_sp_profiles(std::ofstream &dumpFile, CCodeSection *codeSect)
+void CSoftParserBlob::blob_write_sp_profiles(std::ofstream &dumpFile, CProfile *profile)
 {
-	int sect_size = 0, profile_cfg;
+	int sect_size = 0, proto_used;
 	unsigned int i, j;
+	const char *name;
+	int len;
 	uint8_t	flags, nameSize;
-	char profile_name[9];
 
-	/* Count the number of profiles configured */
-	profile_cfg = 0;
-	for (i = 0; i < codeSect->spr.labelsTable.size(); i++)
-	{
-		uint32_t baseProtocol = blob_get_base_protocol(codeSect->spr.labelsTable[i].prevType[0]);
-
-		//skip invalid protocols
-		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
-			continue;
-
-		profile_cfg++;
+	//check if it is really used by parsers
+	//if not then do not add it in the blob
+	if (profile->flags_enable_parsers == 0) {
+		return;
 	}
 
-	/* Calculate Section Size */
-	sect_size = 16 +				/* Size (4) + TAG (4) + Reserved (8) */
-				16 * profile_cfg;	/* profile cfg */
+	/* Count the number of protocols used in this profile */
+	proto_used = profile->protocols.size();
 
-	/* Section Size */
+	/* Calculate Section Size */
+	sect_size = 32 +				/* Size (4) + TAG (4) + Reserved (8) + Name (8) + Flags (1) + ItemsNo (1) + Reserved (6) */
+				16 * proto_used;		/* protocols used in this profile */
+
+	/* Section Size (4) */
 	blob_write_cpu_to_le32(dumpFile, sect_size);
 
-	/* TAG */
+	/* TAG (4) */
 	blob_write_cpu_to_le32(dumpFile, 2);
 
 	/* Reserved (8) */
 	blob_write_cpu_to_le32(dumpFile, 0);
 	blob_write_cpu_to_le32(dumpFile, 0);
 
-	/* Profiles configuration */
-	for (i = 0; i < codeSect->spr.labelsTable.size(); i++)
+	/* Profile Name (8) */
+	name = profile->name.c_str();
+	len = (int)strlen(name);
+	for (j = 0; j < 8; j++)
 	{
-		uint32_t baseProtocol = blob_get_base_protocol(codeSect->spr.labelsTable[i].prevType[0]);
+		if (j < len)
+			blob_write8(dumpFile, name[j]);
+		else
+			blob_write8(dumpFile, 0);
+	}
+
+	/* Profile parsers flags (1) */
+	blob_write8(dumpFile, profile->flags_enable_parsers);
+
+
+	/* Protocols items number (1) */
+	blob_write8(dumpFile, (uint8_t)proto_used);
+
+	/* Reserved (6) */
+	blob_write_cpu_to_le32(dumpFile, 0);
+	blob_write_cpu_to_le16(dumpFile, 0);
+
+	for (i = 0; i < profile->protocols.size(); i++)
+	{
+		CExtension* ext = get_extension_protocol(profile->protocols[i], profile->flags_enable_parsers);
+		if (ext == NULL) {
+			throw CGenericError (ERR_PROTOCOL_NOT_LOADED, profile->name.c_str(), profile->protocols[i]);
+		}
+
+		uint32_t baseProtocol = blob_get_base_protocol(ext->prevType[0]);
+		uint16_t entry = ext->position;
 
 		//skip invalid protocols
 		if (baseProtocol == BLOB_BASE_PROTO_INVALID)
 			continue;
 
-		/* Profiles cfg - name (8) */
-		memset(profile_name, 0, 9);
-
-		nameSize = strlen(codeSect->spr.labelsTable[i].protocol.name.c_str());
-		if (nameSize > 8) {
-			CGenericError::printWarning("Protocol name is too long (maximum limit is 8 characters)");
-			nameSize = 8;
-		}
-		memcpy(profile_name, codeSect->spr.labelsTable[i].protocol.name.c_str(), nameSize);
+		/* Protocol name (8) */
+		name = profile->protocols[i].c_str();
+		int len = (int)strlen(name);
 		for (j = 0; j < 8; j++)
-			blob_write8(dumpFile, profile_name[j]);
+		{
+			if (j < len)
+				blob_write8(dumpFile, name[j]);
+			else
+				blob_write8(dumpFile, 0);
+		}
 
-		/* Profiles cfg - flags (1) */
-		flags = 0;
-	    std::vector< std::string >::const_iterator it;
-	    for ( it = codeSect->spr.labelsTable[i].protocol.parsers.begin();
-	          it != codeSect->spr.labelsTable[i].protocol.parsers.end();
-	          ++it )
-	    {
-	    	std::string parser = *it;
-
-	        if (parser.compare(HW_ACCEL_WRIOP_INGRESS) == 0) {
-	        	flags |= ENABLE_ON_WRIOP_INGRESS;
-	        }
-	        else if (parser.compare(HW_ACCEL_WRIOP_EGRESS) == 0) {
-	        	flags |= ENABLE_ON_WRIOP_EGRESS;
-	        }
-	        else if (parser.compare(HW_ACCEL_AIOP_INGRESS) == 0) {
-	        	flags |= ENABLE_ON_AIOP_INGRESS;
-	        }
-	        else if (parser.compare(HW_ACCEL_AIOP_EGRESS) == 0) {
-	        	flags |= ENABLE_ON_AIOP_EGRESS;
-	        }
-			else if (parser.compare(HW_ACCEL_AIOP) == 0) {
-				flags |= (ENABLE_ON_AIOP_INGRESS | ENABLE_ON_AIOP_EGRESS);
-			}
-	    }
-		blob_write8(dumpFile, flags);
-
-		/* Reserved (1) */
-		blob_write8(dumpFile, 0);
+		/* Reserved (2) */
+		blob_write_cpu_to_le16(dumpFile, 0);
 
 		/* Seq start entry point (2) */
-		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * codeSect->spr.labelsTable[i].position));
+		blob_write_cpu_to_le16(dumpFile, (uint16_t)(2 * entry));
 
 		/* Base protocol (4) */
 		blob_write_cpu_to_le32(dumpFile, baseProtocol);
@@ -875,6 +957,7 @@ void CSoftParserBlob::blob_write_ex_array(std::ofstream &dumpFile)
 						1 +  /* flags (1) */
 						1 +  /* Reserved (1) */
 						8 +  /* profile-name (8) */
+						8 +  /* protocol-name (8) */
 						8;   /* param-name (8) */
 
 		zeroValue = true;
@@ -921,6 +1004,7 @@ void CSoftParserBlob::blob_write_ex_array(std::ofstream &dumpFile)
 						1 +  /* flags (1) */
 						1 +  /* Reserved (1) */
 						8 +  /* profile-name (8) */
+						8 +  /* protocol-name (8) */
 						8;   /* param-name (8) */
 
 		zeroValue = true;
@@ -961,12 +1045,24 @@ void CSoftParserBlob::blob_write_ex_array(std::ofstream &dumpFile)
 		/* profile-name (8) */
 		memset(name, 0, 9);
 
-		nameSize = strlen(task->parameters[i].protocol.c_str());
+		nameSize = strlen(task->parameters[i].profile_name.c_str());
+		if (nameSize > 8) {
+			CGenericError::printWarning("Profile name is too long (maximum limit is 8 characters)");
+			nameSize = 8;
+		}
+		memcpy(name, task->parameters[i].profile_name.c_str(), nameSize);
+		for (j = 0; j < 8; j++)
+			blob_write8(dumpFile, name[j]);
+
+		/* protocol-name (8) */
+		memset(name, 0, 9);
+
+		nameSize = strlen(task->parameters[i].proto_name.c_str());
 		if (nameSize > 8) {
 			CGenericError::printWarning("Protocol name is too long (maximum limit is 8 characters)");
 			nameSize = 8;
 		}
-		memcpy(name, task->parameters[i].protocol.c_str(), nameSize);
+		memcpy(name, task->parameters[i].proto_name.c_str(), nameSize);
 		for (j = 0; j < 8; j++)
 			blob_write8(dumpFile, name[j]);
 
@@ -1009,26 +1105,34 @@ void CSoftParserBlob::dumpBlob(std::string path)
 
     blob_size = 0;
 
-    /* File header */
-    blob_write_file_header(dumpFile);
+    try {
+		/* File header */
+		blob_write_file_header(dumpFile);
 
-    /* Blob name */
-    blob_write_blob_name(dumpFile, task->name.c_str());
+		/* Blob name */
+		blob_write_blob_name(dumpFile, task->name.c_str());
 
-    /* Bytecode */
-    for (i = 0; i < task->program.size(); i++)
-    	blob_write_bytecode(dumpFile, &task->program[i]);
+		/* Bytecode */
+		for (i = 0; i < task->program.size(); i++)
+			blob_write_bytecode(dumpFile, &task->program[i]);
 
-    /* SP Profiles */
-    for (i = 0; i < task->program.size(); i++)
-    	blob_write_sp_profiles(dumpFile, &task->program[i]);
+		/* SP Profiles */
+		for (i = 0; i < task->profiles.size(); i++)
+			blob_write_sp_profiles(dumpFile, &task->profiles[i]);
 
-    /* Examination array */
-    blob_write_ex_array(dumpFile);
+		/* Examination array */
+		blob_write_ex_array(dumpFile);
 
-    /* Blob size */
-    blob_write_blob_size(dumpFile);
-
+		/* Blob size */
+		blob_write_blob_size(dumpFile);
+    }
+    catch ( const CGenericError& genError )
+    {
+    	//Generic error: remove the blob because is incomplete
+    	dumpFile.close();
+    	remove(path.c_str());
+    	throw;
+    }
 	dumpFile.close();
 }
 

@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -76,11 +76,11 @@ uint32_t CSoftParserTask::getBaseAddresss(unsigned int index)
 	return program[index].swOffset;
 }
 
-void CSoftParserTask::enableProtocolOnInit(std::string protocol_name, std::string parser_name)
+void CSoftParserTask::enableProfileOnParser(std::string profile_name, std::string parser_name)
 {
-	for ( unsigned int i = 0; i < protocols.size(); i++ ) {
-        if ( protocols[i].name == protocol_name ) {
-        	protocols[i].parsers.push_back(parser_name);
+	for ( unsigned int i = 0; i < profiles.size(); i++ ) {
+        if (profiles[i].name == profile_name) {
+        	profiles[i].enable_on_parser(parser_name);
         	break;
         }
 	}
@@ -145,6 +145,16 @@ bool CSoftParserTask::findSpProtocol(std::string protocol_name) const
 	return false;
 }
 
+bool CSoftParserTask::findSpProfile(std::string profile_name) const
+{
+	for (unsigned int i = 0; i < profiles.size(); i++)
+    {
+    	if (profile_name.compare(profiles[i].name) == 0) {
+    		return true;
+    	}
+    }
+	return false;
+}
 
 /*Gets the size of the protocol's header according to its fields*/
 bool CProtocol::GetHeaderSize( uint32_t& size ) const

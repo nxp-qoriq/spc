@@ -1,7 +1,7 @@
 /* =====================================================================
  *
  * The MIT License (MIT)
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019,2021 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -35,8 +35,6 @@ using namespace logger;
 static std::string availableParsers[] = {
 		HW_ACCEL_WRIOP_INGRESS,
 		HW_ACCEL_WRIOP_EGRESS,
-		HW_ACCEL_AIOP_INGRESS,
-		HW_ACCEL_AIOP_EGRESS,
 		HW_ACCEL_AIOP,
 		""
 };
@@ -143,13 +141,13 @@ void ConfigReader::parseConfig( std::string filename )
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"memorymap" ) ) {
         	parseMemorymap( cur );
         }
+        // sp-profiles
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"sp-profiles" ) ) {
+            parseSpProfiles( cur );
+        }
         // device
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"device" ) ) {
             parseDevice( cur );
-        }
-        // parameters
-        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameters" ) ) {
-        	parseParameters( cur );
         }
         // comment
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
@@ -240,10 +238,8 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
     std::string sOffset = getAttr(pNode, "offset");
     if (sOffset.length() == 0 || sOffset.compare("auto") == 0) {
     	//first section BASE ADDRESS:
-    	codeSection->swOffset = SP_ASSEMBLER_BASE_ADDRESS;
-
-    	//TODO: for next sections should calculate available offset according to previous sections size
-
+    	//will be set in CSoftParserTask::generateBlob as the next free address (according to the size of previous sections)
+    	codeSection->swOffset = 0;
     }
     else {
     	codeSection->swOffset = strtol(sOffset.c_str(), NULL, 16);
@@ -277,7 +273,7 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
             if (!validParser)
             	throw CGenericErrorLine(ERR_INVALID_ATTRIBUTE_VALUE, pNode->line, "name", "load-on-parser");
 
-            codeSection->parsers.push_back(parser_name);
+            codeSection->set_load_on_parser(parser_name);
 
         	//TODO: add support also for: <load-on-parser name="all" />
         	//		if is missing then default is: "all"
@@ -307,7 +303,7 @@ void ConfigReader::parseBytecode(CCodeSection* codeSection, xmlNodePtr pNode )
     }
 }
 
-void ConfigReader::parseParameters(xmlNodePtr pNode )
+void ConfigReader::parseParameters(xmlNodePtr pNode, std::string profile_name )
 {
     // Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"parameters" ) ) {
@@ -323,6 +319,7 @@ void ConfigReader::parseParameters(xmlNodePtr pNode )
 
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"parameter" ) ) {
         	CParameter param;
+        	param.profile_name = profile_name;
         	parseParameter( &param, cur );
             task->parameters.push_back(param);
         }
@@ -353,7 +350,7 @@ void ConfigReader::parseParameter(CParameter* param, xmlNodePtr pNode )
 
     // Get known attributes
     param->name = getAttr(pNode, "name");
-    param->protocol = getAttr(pNode, "protocol");
+    param->proto_name = getAttr(pNode, "protocol");
 
     std::string sOffset = getAttr(pNode, "offset");
     if (sOffset.length() == 0 || sOffset.compare("auto") == 0) {
@@ -404,6 +401,87 @@ void ConfigReader::parseParameter(CParameter* param, xmlNodePtr pNode )
     checkUnknownAttr(pNode, 6, "name", "protocol", "offset", "size", "value", "type");
 }
 
+void ConfigReader::parseSpProfiles( xmlNodePtr pNode )
+{
+    // Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"sp-profiles" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    checkUnknownAttr(pNode, 0);
+
+    // Parse children nodes
+    xmlNodePtr cur = pNode->xmlChildrenNode;
+    while ( 0 != cur ) {
+        // parser
+        if ( !xmlStrcmp( cur->name, (const xmlChar*)"profile" ) ) {
+        	CProfile profile;
+        	parseProfile( &profile, cur );
+            task->profiles.push_back(profile);
+        }
+        // comment
+        else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( cur->name, (const xmlChar*)"text" )  ) {
+        }
+        // other
+        else {
+            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
+                                          xmlGetLineNo(cur), (char*)cur->name);
+        }
+
+        cur = cur->next;
+    }
+}
+
+void ConfigReader::parseProfile(CProfile* profile,  xmlNodePtr pNode )
+{
+	// Make sure we process the right node
+    if ( xmlStrcmp( pNode->name, (const xmlChar*)"profile" ) ) {
+        throw CGenericError( ERR_WRONG_TYPE1, (char*)pNode->name );
+    }
+
+    checkUnknownAttr(pNode, 1, "name");
+
+    // Get known attributes
+    std::string profile_name = getAttr(pNode, "name");
+
+	if (profile_name == "")
+		throw CGenericErrorLine(ERR_MISSING_ATTRIBUTE, pNode->line, "name", "profile");
+
+	profile->name = profile_name;
+
+    // Parse children nodes
+    xmlNodePtr pCrtNode = pNode->xmlChildrenNode;
+    while ( 0 != pCrtNode ) {
+        if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"protocol" ) ) {
+            // Get known attributes
+            std::string protocol_name = getAttr(pCrtNode, "name");
+            checkUnknownAttr(pCrtNode, 1, "name");
+
+            //check if the protocol is defined in NetPDL file
+            if (task->findSpProtocol(protocol_name))
+            	profile->protocols.push_back(protocol_name);
+            else
+            	throw CGenericErrorLine(ERR_UNDEFINED_PROTOCOL, pCrtNode->line, protocol_name);
+        }
+        // parameters
+        else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"parameters" ) ) {
+        	parseParameters( pCrtNode, profile_name );
+        }
+        // comment
+        else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"comment" ) ||
+                  !xmlStrcmp( pCrtNode->name, (const xmlChar*)"text" )  ) {
+        }
+        // other
+        else {
+            CGenericErrorLine::printWarning(WARN_UNEXPECTED_NODE,
+                                          xmlGetLineNo(pCrtNode), (char*)pCrtNode->name);
+        }
+
+        pCrtNode = pCrtNode->next;
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // CPDLReader::parseDevice
 // Process the 'device' node of the NetPDL
@@ -422,7 +500,9 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
     while ( 0 != cur ) {
         // parser
         if ( !xmlStrcmp( cur->name, (const xmlChar*)"parser" ) ) {
-        	parseDevParser( cur );
+        	CParser parser;
+        	parseDevParser( &parser, cur );
+            task->parsers.push_back(parser);
         }
         // comment
         else if ( !xmlStrcmp( cur->name, (const xmlChar*)"comment" ) ||
@@ -438,7 +518,7 @@ void ConfigReader::parseDevice( xmlNodePtr pNode )
     }
 }
 
-void ConfigReader::parseDevParser(xmlNodePtr pNode)
+void ConfigReader::parseDevParser(CParser* parser, xmlNodePtr pNode)
 {
 	// Make sure we process the right node
     if ( xmlStrcmp( pNode->name, (const xmlChar*)"parser" ) ) {
@@ -465,21 +545,25 @@ void ConfigReader::parseDevParser(xmlNodePtr pNode)
     if (!validParser)
     	throw CGenericErrorLine(ERR_INVALID_ATTRIBUTE_VALUE, pNode->line, "name", "parser");
 
+	parser->name = parser_name;
+
     // Parse children nodes
     xmlNodePtr pCrtNode = pNode->xmlChildrenNode;
     while ( 0 != pCrtNode ) {
         // engine
-        if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"enable-on-init" ) ) {
+        if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"set-profile" ) ) {
 
             // Get known attributes
-            std::string protocol_name = getAttr(pCrtNode, "protocol");
-            checkUnknownAttr(pCrtNode, 1, "protocol");
+            std::string profile_name = getAttr(pCrtNode, "name");
+            checkUnknownAttr(pCrtNode, 1, "name");
 
-            //check if the protocol is defined in NetPDL file
-            if (task->findSpProtocol(protocol_name))
-            	task->enableProtocolOnInit(protocol_name, parser_name);
+            //check if the profile is defined in sp-profiles tag
+            if (task->findSpProfile(profile_name)) {
+            	parser->profiles.push_back(profile_name);
+        		task->enableProfileOnParser(profile_name, parser_name);
+            }
             else
-            	throw CGenericErrorLine(ERR_UNDEFINED_PROTOCOL, pCrtNode->line, protocol_name);
+            	throw CGenericErrorLine(ERR_UNDEFINED_PROTOCOL, pCrtNode->line, profile_name);
         }
         // comment
         else if ( !xmlStrcmp( pCrtNode->name, (const xmlChar*)"comment" ) ||
