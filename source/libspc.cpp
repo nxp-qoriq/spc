@@ -97,7 +97,8 @@ int spc_compile(const char* nameCfg, const char* namePDL, const char* nameSP, bo
                             << std::endl;
         
     }
-    catch ( const CGenericError& genError ) { // Catch known errors
+    catch ( const CGenericError& genError )
+    { 	// Catch known errors
         error_text = genError.getErrorMsg();
         LOG( logger::ERR ) << error_text << std::endl;
         return 3;
@@ -110,7 +111,8 @@ int spc_compile(const char* nameCfg, const char* namePDL, const char* nameSP, bo
         LOG( logger::ERR ) << error_text << std::endl;
         return 4;
     }
-    catch ( ... ) {                     // Catch unknown errors
+    catch ( ... )
+    {  	// Catch unknown errors
         error_text = "Unrecognized error occurred. The program was terminated";
         LOG( logger::ERR ) << error_text << std::endl;
         return 1;

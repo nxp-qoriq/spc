@@ -37,8 +37,6 @@
 /* Available HW Accelerators */
 #define HW_ACCEL_WRIOP_INGRESS		"wriop_ingress"
 #define HW_ACCEL_WRIOP_EGRESS		"wriop_egress"
-#define HW_ACCEL_AIOP_INGRESS		"aiop_ingress"
-#define HW_ACCEL_AIOP_EGRESS		"aiop_egress"
 #define HW_ACCEL_AIOP				"aiop"
 
 class CSoftParserTask;
@@ -87,17 +85,41 @@ public:
 
 public:
 	std::string		name;
-	std::string		protocol;
+	std::string 	profile_name;
+	std::string 	proto_name;
 	uint32_t		offset;
 	uint32_t		size;
 	bool			readOnly;
 	uint8_t			value[PRS_PARAM_SIZE];
 };
 
+class CProfile
+{
+public:
+	CProfile() : flags_enable_parsers(0) {};
+
+public:
+	std::string		name;
+	std::vector<std::string>	protocols;
+
+	uint8_t	flags_enable_parsers;
+	void enable_on_parser(std::string parser_name);
+};
+
+class CParser
+{
+public:
+	CParser() {};
+
+public:
+	std::string		name;
+	std::vector<std::string>	profiles;
+};
+
 class CSoftParserResult
 {
 public:
-    uint16_t                 base;                      /**< SW parser base bytes
+    uint16_t                 base;                      /**< SW parser base in bytes
                                                              must be larger than 0x40*/
     uint32_t                 size;                      /**< SW parser code size in bytes */
     uint8_t                  p_Code[MAX_SP_CODE_SIZE];  /**< SW parser code */
@@ -116,12 +138,16 @@ public:
 class CCodeSection
 {
 public:
-	CCodeSection() :  swOffset(SP_ASSEMBLER_BASE_ADDRESS) 	{};
+	CCodeSection() :  swOffset(SP_ASSEMBLER_BASE_ADDRESS), flags_load_parsers(0), flags_enable_parsers(0) {};
 
 public:
 	uint32_t		swOffset;
 	std::vector< std::string > parsers;
 	std::vector< std::string > protocols;
+
+	uint32_t	flags_load_parsers;
+	uint8_t 	flags_enable_parsers;
+	void set_load_on_parser(std::string parser_name);
 
 	CSoftParserResult          spr;
 };
@@ -157,11 +183,12 @@ private:
     void blob_write_cpu_to_le32(std::ofstream &dumpFile, uint32_t val32);
 
     uint32_t blob_get_base_protocol(const ProtoType prevType);
+    CExtension* get_extension_protocol(std::string protocol_name, uint8_t flags_parsers);
 
     void blob_write_file_header(std::ofstream &dumpFile);
     void blob_write_blob_name(std::ofstream &dumpFile, const char *name);
     void blob_write_bytecode(std::ofstream &dumpFile, CCodeSection *codeSect);
-    void blob_write_sp_profiles(std::ofstream &dumpFile, CCodeSection *codeSect);
+    void blob_write_sp_profiles(std::ofstream &dumpFile, CProfile *profile);
     void blob_write_ex_array(std::ofstream &dumpFile);
     void blob_write_blob_size(std::ofstream &dumpFile);
 

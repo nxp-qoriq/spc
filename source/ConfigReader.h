@@ -40,10 +40,12 @@ public:
     void parseSoc     	   (xmlNodePtr pNode );
     void parseMemorymap	   (xmlNodePtr pNode);
     void parseBytecode     (CCodeSection* codeSection, xmlNodePtr pNode );
-    void parseParameters   (xmlNodePtr pNode );
+    void parseParameters   (xmlNodePtr pNode, std::string profile_name );
     void parseParameter    (CParameter* param, xmlNodePtr pNode );
-    void parseDevice       (xmlNodePtr pNode );
-    void parseDevParser    (xmlNodePtr pNode );
+    void parseSpProfiles	(xmlNodePtr pNode);
+    void parseProfile		(CProfile* profile, xmlNodePtr pNode);
+    void parseDevice       	(xmlNodePtr pNode);
+    void parseDevParser    	(CParser* parser, xmlNodePtr pNode);
 
 protected:
     static std::string getAttr( xmlNodePtr pNode, const char* attr );
