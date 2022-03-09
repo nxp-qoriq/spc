@@ -1812,6 +1812,7 @@ void RA::initRA()
 #else  /* FM_SHIM3_SUPPORT */
 	RAInInfo["ip_pidoffset"]          = RA_IP_PIDOFFSET;
 #endif /* FM_SHIM3_SUPPORT */
+	RAInInfo["l2offset"]              = RA_L2OFFSET;
 	RAInInfo["ethoffset"]             = RA_ETHOFFSET;
 	RAInInfo["llc_snapoffset"]        = RA_LLC_SNAPOFFSET;
 	RAInInfo["vlantcioffset_1"]       = RA_VLANTCIOFFSET_1;
@@ -1822,14 +1823,12 @@ void RA::initRA()
 	RAInInfo["mplsoffset_n"]          = RA_MPLSOFFSET_N;
 	RAInInfo["ipoffset_1"]            = RA_IPOFFSET_1;
 	RAInInfo["ipoffset_n"]            = RA_IPOFFSET_N;
-	RAInInfo["minencapo"]             = RA_MINENCAPOFFSET;
 	RAInInfo["minencapoffset"]        = RA_MINENCAPOFFSET;
 	RAInInfo["greoffset"]             = RA_GREOFFSET;
 	RAInInfo["l4offset"]              = RA_L4OFFSET;
 	RAInInfo["nxthdroffset"]          = RA_NXTHDROFFSET;
 	RAInInfo["sperc"]                 = RA_SPERC;
 	RAInInfo["iplength"]              = RA_IPLENGTH;
-	RAInInfo["attr"]                  = RA_ATTR;
 	RAInInfo["ipv4sa"]                = RA_IPV4SA;
 	RAInInfo["ipv4da"]                = RA_IPV4DA;
 	RAInInfo["ipv6sa1"]               = RA_IPV6SA1;
@@ -1838,6 +1837,7 @@ void RA::initRA()
 	RAInInfo["ipv6da2"]               = RA_IPV6DA2;
 	RAInInfo["fafext"]                = RA_FAF_EXT;
 	RAInInfo["fafflags"]              = RA_FAF_FLAGS;
+	RAInInfo["l3offset"]			  = RA_L3OFFSET;
 	RAInInfo["arpoffset"]			  = RA_ARPOFFSET;
 	RAInInfo["gtpoffset"]             = RA_GTPOFFSET;
 	RAInInfo["espoffset"]             = RA_ESPOFFSET;
@@ -1846,6 +1846,8 @@ void RA::initRA()
 	RAInInfo["routhdroffset2"]        = RA_ROUTHDROFFSET2;
 	RAInInfo["grossrunningsum"]       = RA_GROSSRUNNINGSUM;
 	RAInInfo["parseerrcode"]          = RA_PARSEERRCODE;
+	RAInInfo["nxthdrfragoffset"]      = RA_NXTHDRFRAGOFFSET;
+	RAInInfo["ipnpidoffset"]          = RA_IPNPIDOFFSET;
 	RAInInfo["softparsectx"]          = RA_SOFTPARSECTX;
 	RAInInfo["fdlength"]              = RA_FDLENGTH;
 	RAInInfo["parseerrstat"]          = RA_PARSEERRSTAT;
@@ -1890,7 +1892,9 @@ void RA::initRA()
 	RATypeInfo[RA_GROSSRUNNINGSUM]		 = CLocation(52,53);
 	RATypeInfo[RA_RUNNINGSUM]			 = CLocation(54,55);
 	RATypeInfo[RA_PARSEERRCODE]			 = CLocation(56,56);
-	RATypeInfo[RA_SOFTPARSECTX]			 = CLocation(57,63);
+	RATypeInfo[RA_NXTHDRFRAGOFFSET]		 = CLocation(57,57);
+	RATypeInfo[RA_IPNPIDOFFSET]			 = CLocation(58,58);
+	RATypeInfo[RA_SOFTPARSECTX]			 = CLocation(59,79);
 	//Parse Array cont: 0x50
 	RATypeInfo[RA_IPV4SA]                = CLocation(80,83);
 	RATypeInfo[RA_IPV4DA]                = CLocation(84,87);
