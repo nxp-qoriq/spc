@@ -67,7 +67,7 @@ objects = ./libspc.o                                                \
 headers = spc.h GenericError.h \
           PDLReader.h ConfigReader.h SoftParser.h      \
           SPCreateCode.h SPIR.h TaskDef.h Utils.h      \
-          SPExpr.hpp logger.hpp 
+          SPExpr.hpp logger.hpp
 
 other_files = ./spc ./softparse.h ./libspc.a ./SPC.o
 
@@ -93,7 +93,7 @@ dist: clean
 	cp *.c *.cpp *.h *.hpp Makefile    $(PKG_NAME)/source
 	cp spa/*.c spa/*.h                 $(PKG_NAME)/source/spa
 	cp -r ../etc/*                     $(PKG_NAME)/etc
-	cp ../INSTALL ../COPYING ../README $(PKG_NAME)
+	cp ../INSTALL ../LICENSE ../README $(PKG_NAME)
 	find $(PKG_NAME) -name  CVS   -print0 | xargs -0 /bin/rm -R -f
 	find $(PKG_NAME) -name .svn   -print0 | xargs -0 /bin/rm -R -f
 	find $(PKG_NAME) -name \*.o   -print0 | xargs -0 /bin/rm -R -f
